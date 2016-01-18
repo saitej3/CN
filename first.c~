@@ -14,13 +14,11 @@ int main()
 		close(fd[1]);
 		char buf[128];
 		read(fd[0],buf,128);
-		printf("%s\n",buf);
-		
 	}
 	else
 	{
 		close(fd[0]);
-		char buf[128]="hello world\n";
+		char buf[128]={'h','e','l','l','o'};
 		write(fd[1],buf,128);
 	}
 }
