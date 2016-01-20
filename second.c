@@ -4,9 +4,11 @@
 
 int main()
 {
-	FILE * f;
-	f=popen("third",0);
+	//FILE * f;
+	//f=popen("third",0);
+	//char buf[128];
 	char buf[128];
-	cin>>buf;
-	write(fd,"hello",128);
+	scanf("%s",buf);
+	printf("%s",buf);
+	//write(f,buf,128);
 }
