@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<!--[if IE 7]>
+<html class="ie ie7" lang="en-US" prefix="og: http://ogp.me/ns#">
+<![endif]-->
+<!--[if IE 8]>
+<html class="ie ie8" lang="en-US" prefix="og: http://ogp.me/ns#">
+<![endif]-->
+<!--[if !(IE 7) | !(IE 8)  ]><!-->
+<html lang="en-US" prefix="og: http://ogp.me/ns#">
+<!--<![endif]-->
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width" />
+<title>Queue | Set 1 (Introduction and Array Implementation) - GeeksQuiz</title>
+<link rel="profile" href="http://gmpg.org/xfn/11" />
+<link rel="pingback" href="http://geeksquiz.com/xmlrpc.php" />
+<!--[if lt IE 9]>
+<script src="http://geeksquiz.com/wp-content/themes/iconic-one/js/html5.js" type="text/javascript"></script>
+<![endif]-->
+
+<!-- This site is optimized with the Yoast SEO plugin v3.0.7 - https://yoast.com/wordpress/plugins/seo/ -->
+<link rel="canonical" href="http://geeksquiz.com/queue-set-1introduction-and-array-implementation/" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Queue | Set 1 (Introduction and Array Implementation) - GeeksQuiz" />
+<meta property="og:description" content="Like Stack, Queue is a linear structure which follows a particular order in which the operations are performed. The order is First In First Out (FIFO).  A good example of queue is any queue of consumers for a resource where the consumer that came first is served first. The difference between stacks and queues is in… Read More &raquo;" />
+<meta property="og:url" content="http://geeksquiz.com/queue-set-1introduction-and-array-implementation/" />
+<meta property="og:site_name" content="GeeksQuiz" />
+<meta property="article:section" content="Queue" />
+<meta property="article:published_time" content="2014-02-01T02:02:24+00:00" />
+<meta property="article:modified_time" content="2015-10-29T12:38:36+00:00" />
+<meta property="og:updated_time" content="2015-10-29T12:38:36+00:00" />
+<!-- / Yoast SEO plugin. -->
+
+		<script type="text/javascript">
+			window._wpemojiSettings = {"baseUrl":"http:\/\/s.w.org\/images\/core\/emoji\/72x72\/","ext":".png","source":{"concatemoji":"http:\/\/geeksquiz.com\/wp-includes\/js\/wp-emoji-release.min.js?ver=4.2.7"}};
+			!function(a,b,c){function d(a){var c=b.createElement("canvas"),d=c.getContext&&c.getContext("2d");return d&&d.fillText?(d.textBaseline="top",d.font="600 32px Arial","flag"===a?(d.fillText(String.fromCharCode(55356,56812,55356,56807),0,0),c.toDataURL().length>3e3):(d.fillText(String.fromCharCode(55357,56835),0,0),0!==d.getImageData(16,16,1,1).data[0])):!1}function e(a){var c=b.createElement("script");c.src=a,c.type="text/javascript",b.getElementsByTagName("head")[0].appendChild(c)}var f,g;c.supports={simple:d("simple"),flag:d("flag")},c.DOMReady=!1,c.readyCallback=function(){c.DOMReady=!0},c.supports.simple&&c.supports.flag||(g=function(){c.readyCallback()},b.addEventListener?(b.addEventListener("DOMContentLoaded",g,!1),a.addEventListener("load",g,!1)):(a.attachEvent("onload",g),b.attachEvent("onreadystatechange",function(){"complete"===b.readyState&&c.readyCallback()})),f=c.source||{},f.concatemoji?e(f.concatemoji):f.wpemoji&&f.twemoji&&(e(f.twemoji),e(f.wpemoji)))}(window,document,window._wpemojiSettings);
+		</script>
+		<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+<link rel='stylesheet' id='mtq_CoreStyleSheets-css'  href='http://geeksquiz.com/wp-content/plugins/mtouch-quiz/mtq_core_style.min.css?ver=3.0.4' type='text/css' media='all' />
+<link rel='stylesheet' id='mtq_ThemeStyleSheets-css'  href='http://geeksquiz.com/wp-content/plugins/mtouch-quiz/mtq_theme_style.min.css?ver=3.0.4' type='text/css' media='all' />
+<link rel='stylesheet' id='wp-quicklatex-format-css'  href='http://geeksquiz.com/wp-content/plugins/wp-quicklatex/css/quicklatex-format.css?ver=4.2.7' type='text/css' media='all' />
+<link rel='stylesheet' id='wp-pagenavi-css'  href='http://geeksquiz.com/wp-content/plugins/wp-pagenavi/pagenavi-css.css?ver=2.70' type='text/css' media='all' />
+<link rel='stylesheet' id='themonic-fonts-css'  href='http://fonts.googleapis.com/css?family=Ubuntu:400,700&#038;subset=latin,latin-ext' type='text/css' media='all' />
+<link rel='stylesheet' id='themonic-style-css'  href='http://geeksquiz.com/wp-content/themes/iconic-one/style.css?ver=4.2.7' type='text/css' media='all' />
+<link rel='stylesheet' id='custom-style-css'  href='http://geeksquiz.com/wp-content/themes/iconic-one/custom.css?ver=4.2.7' type='text/css' media='all' />
+<!--[if lt IE 9]>
+<link rel='stylesheet' id='themonic-ie-css'  href='http://geeksquiz.com/wp-content/themes/iconic-one/css/ie.css?ver=20130305' type='text/css' media='all' />
+<![endif]-->
+<script type='text/javascript' src='http://geeksquiz.com/wp-includes/js/jquery/jquery.js?ver=1.11.2'></script>
+<script type='text/javascript' src='http://geeksquiz.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
+<script type='text/javascript' src='http://geeksquiz.com/wp-content/plugins/mtouch-quiz/script.min.js?ver=3.0.4'></script>
+<script type='text/javascript' src='http://geeksquiz.com/wp-content/plugins/wp-quicklatex/js/wp-quicklatex-frontend.js?ver=1.0'></script>
+<meta name="generator" content="WordPress 4.2.7" />
+
+<!-- Bad Behavior 2.2.18 run time: 0.744 ms -->
+<script type="text/javascript">
+<!--
+function bb2_addLoadEvent(func) {
+	var oldonload = window.onload;
+	if (typeof window.onload != 'function') {
+		window.onload = func;
+	} else {
+		window.onload = function() {
+			oldonload();
+			func();
+		}
+	}
+}
+
+bb2_addLoadEvent(function() {
+	for ( i=0; i < document.forms.length; i++ ) {
+		if (document.forms[i].method == 'post') {
+			var myElement = document.createElement('input');
+			myElement.setAttribute('type', 'hidden');
+			myElement.name = 'bb2_screener_';
+			myElement.value = '1458084212 43.225.192.2';
+			document.forms[i].appendChild(myElement);
+		}
+	}
+});
+// --></script>
+		<style type="text/css" id="custom-background-css">
+body.custom-background { background-color: #ffffff; }
+</style>
+<style type="text/css" id="syntaxhighlighteranchor"></style>
+</head>
+<body class="single single-post postid-8969 single-format-standard custom-background custom-background-white custom-font-enabled">
+<div id="page" class="hfeed site">
+	<header id="masthead" class="site-header" role="banner">
+					<hgroup>
+			<a href="http://geeksquiz.com/" title="GeeksQuiz" rel="home">GeeksQuiz</a>
+				<br .../> <a class="site-description">Computer Science Quizzes for Geeks !</a>
+		</hgroup>
+<div style="float:right;">
+<hgroup style="float:right;">
+
+
+<strong><a style="padding:0px 25px 0px 0px; font-size:25px; font-family: Georgia,Times New Roman,Times,Helvetica,Arial,serif; font-weight: lighter; letter-spacing: -0.05em; text-decoration:none;" href="http://geeksquiz.com/suggest/">Suggest</a></strong>
+
+<strong><a style="padding:0px 25px 0px 0px; font-size:25px; font-family: Georgia,Times New Roman,Times,Helvetica,Arial,serif; font-weight: lighter; letter-spacing: -0.05em; text-decoration:none;" href="http://practice.geeksforgeeks.org/">Practice</a></strong>
+
+<a style="padding:0px 20px 0px 0px; font-size:25px; font-family: Georgia,Times New Roman,Times,Helvetica,Arial,serif; font-weight: lighter; letter-spacing: -0.05em; text-decoration:none;" href="http://geeksquiz.com/placements/">Placements</a>
+
+<a style="padding:0px 20px 0px 0px; font-size:25px; font-family: Georgia,Times New Roman,Times,Helvetica,Arial,serif; font-weight: lighter; letter-spacing: -0.05em; text-decoration:none;" href="http://gatecs.geeksquiz.com/">GATE Q&A</a>
+
+<a style="padding:0px 20px 0px 0px; font-size:25px; font-family: Georgia,Times New Roman,Times,Helvetica,Arial,serif; font-weight: lighter; letter-spacing: -0.05em; text-decoration:none;" href="http://www.geeksforgeeks.org/">GeeksforGeeks</a>
+
+</hgroup>
+<br>
+<span style="display:inline-block; width:300px;float:right;">
+<script>
+  (function() {
+    var cx = '015538222170377750104:ivcgdzughm8';
+    var gcse = document.createElement('script');
+    gcse.type = 'text/javascript';
+    gcse.async = true;
+    gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
+        '//cse.google.com/cse.js?cx=' + cx;
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(gcse, s);
+  })();
+</script>
+<gcse:search></gcse:search>
+
+<style type="text/css">
+
+  .gsc-control-cse {
+     padding: 0px 10px;
+  } 
+
+  .gsc-control-cse {
+    font-family: "Trebuchet MS", sans-serif;
+    /*border-color: #E1F3DA;*/
+    /*background-color: #E1F3DA;*/
+  }
+  input.gsc-input {
+    border-color: #94CC7A;
+  }
+  input.gsc-search-button {
+    border-color: #94CC7A;
+    background-color: #4CB96B;
+    margin-top:15px;
+  }
+  .gsc-tabHeader.gsc-tabhInactive {
+    border-color: #A9DA92;
+    background-color: #FFFFFF;
+  }
+  .gsc-tabHeader.gsc-tabhActive {
+    border-color: #A9DA92;
+    background-color: #A9DA92;
+  }
+  .gsc-tabsArea {
+    border-color: #A9DA92;
+  }
+
+  .gsc-webResult.gsc-result {
+    border-color: #A9DA92;
+    background-color: #FFFFFF;
+  }
+  .gsc-webResult.gsc-result:hover {
+    border-color: #A9DA92;
+    background-color: #FFFFFF;
+  }
+  .gs-webResult.gs-result a.gs-title:link,
+  .gs-webResult.gs-result a.gs-title:link b{
+    color: #009900;
+  }
+ .gs-title{
+	height: 25px !important;
+}
+  .gs-webResult.gs-result a.gs-title:visited,
+  .gs-webResult.gs-result a.gs-title:visited b {
+    color: #009900;
+  }
+  .gs-webResult.gs-result a.gs-title:hover,
+  .gs-webResult.gs-result a.gs-title:hover b {
+    color: #003300;
+  }
+  .gs-webResult.gs-result a.gs-title:active,
+  .gs-webResult.gs-result a.gs-title:active b {
+    color: #009900;
+  }
+  .gsc-cursor-page {
+    color: #009900;
+  }
+  a.gsc-trailing-more-results:link {
+    color: #009900;
+  }
+  .gs-webResult.gs-result .gs-snippet {
+    color: #454545;
+  }
+  .gs-webResult.gs-result .gs-visibleUrl {
+    color: #33cc00;
+  }
+  .gs-webResult.gs-result .gs-visibleUrl-short {
+    color: #33cc00;
+  }
+  .gs-webResult.gs-result .gs-visibleUrl-short {
+    display: none;
+  }
+  .gs-webResult.gs-result .gs-visibleUrl-long {
+    display: block;
+  }
+  .gsc-cursor-box {
+    border-color: #A9DA92;
+  }
+  .gsc-results .gsc-cursor-page {
+    border-color: #A9DA92;
+    background-color: #FFFFFF;
+  }
+  .gsc-results .gsc-cursor-page.gsc-cursor-current-page {
+    border-color: #A9DA92;
+    background-color: #A9DA92;
+  }
+  .gs-promotion.gs-result {
+    border-color: #94CC7A;
+    background-color: #CBE8B4;
+  }
+  .gs-promotion.gs-result a.gs-title:link {
+    color: #0066CC;
+  }
+  .gs-promotion.gs-result a.gs-title:visited {
+    color: #0066CC;
+  }
+  .gs-promotion.gs-result a.gs-title:hover {
+    color: #0066CC;
+  }
+  .gs-promotion.gs-result a.gs-title:active {
+    color: #0066CC;
+  }
+  .gs-promotion.gs-result .gs-snippet {
+    color: #454545;
+  }
+  .gs-promotion.gs-result .gs-visibleUrl,
+  .gs-promotion.gs-result .gs-visibleUrl-short {
+    color: #815FA7;
+  }
+  .gsib_a {
+    padding: 2px;
+  }
+</style>    
+</span>
+</div>
+
+		
+		
+		<nav id="site-navigation" class="themonic-nav" role="navigation">
+			<a class="assistive-text" href="#content" title="Skip to content">Skip to content</a>
+			<div class="menu-top-menu-container"><ul id="menu-top" class="nav-menu"><li id="menu-item-20220" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-20220"><a href="http://geeksquiz.com/quiz-corner/">Quizzes</a>
+<ul class="sub-menu">
+	<li id="menu-item-16946" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-16946"><a href="http://geeksquiz.com/data-structure/">Data Structures</a>
+	<ul class="sub-menu">
+		<li id="menu-item-16869" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16869"><a href="http://geeksquiz.com/data-structure/linked-list/">Linked List</a></li>
+		<li id="menu-item-16870" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16870"><a href="http://geeksquiz.com/data-structure/stack/">Stack</a></li>
+		<li id="menu-item-16871" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16871"><a href="http://geeksquiz.com/data-structure/queue/">Queue</a></li>
+		<li id="menu-item-16873" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16873"><a href="http://geeksquiz.com/data-structure/heap/">Heap</a></li>
+		<li id="menu-item-16872" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16872"><a href="http://geeksquiz.com/data-structure/binary-trees/">Binary Trees</a></li>
+		<li id="menu-item-16877" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16877"><a href="http://geeksquiz.com/data-structure/binary-search-trees/">Binary Search Trees</a></li>
+		<li id="menu-item-16876" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16876"><a href="http://geeksquiz.com/data-structure/balanced-binary-search-trees/">Balanced Binary Search Trees</a></li>
+		<li id="menu-item-16874" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16874"><a href="http://geeksquiz.com/data-structure/graph/">Graph</a></li>
+		<li id="menu-item-16875" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16875"><a href="http://geeksquiz.com/data-structure/hash/">Hash</a></li>
+	</ul>
+</li>
+	<li id="menu-item-16758" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-16758"><a href="http://geeksquiz.com/algorithms/">Algorithms</a>
+	<ul class="sub-menu">
+		<li id="menu-item-16759" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16759"><a href="http://geeksquiz.com/algorithms/analysis-of-algorithms/">Analysis of Algorithms</a></li>
+		<li id="menu-item-16760" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16760"><a href="http://geeksquiz.com/algorithms/analysis-of-algorithms-recurrences/">Analysis of Algorithms (Recurrences)</a></li>
+		<li id="menu-item-16818" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16818"><a href="http://geeksquiz.com/algorithms/recursion/">Recursion</a></li>
+		<li id="menu-item-16762" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16762"><a href="http://geeksquiz.com/algorithms/bit-algorithms/">Bit Algorithms</a></li>
+		<li id="menu-item-16819" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16819"><a href="http://geeksquiz.com/algorithms/searching/">Searching</a></li>
+		<li id="menu-item-16821" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16821"><a href="http://geeksquiz.com/algorithms/searching-and-sorting/">Sorting</a></li>
+		<li id="menu-item-16761" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16761"><a href="http://geeksquiz.com/algorithms/backtracking/">Backtracking</a></li>
+		<li id="menu-item-16813" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16813"><a href="http://geeksquiz.com/algorithms/greedy-algorithms/">Greedy Algorithms</a></li>
+		<li id="menu-item-16814" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16814"><a href="http://geeksquiz.com/algorithms/divide-and-conquer/">Divide and Conquer</a></li>
+		<li id="menu-item-16822" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16822"><a href="http://geeksquiz.com/algorithms/dynamic-programming/">Dynamic Programming</a></li>
+		<li id="menu-item-16817" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16817"><a href="http://geeksquiz.com/algorithms/np-complete/">NP Complete</a></li>
+	</ul>
+</li>
+	<li id="menu-item-16765" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-16765"><a href="http://geeksquiz.com/c-language-2/">C</a>
+	<ul class="sub-menu">
+		<li id="menu-item-16768" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16768"><a href="http://geeksquiz.com/c-language-2/data-types/">Data Types</a></li>
+		<li id="menu-item-16767" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16767"><a href="http://geeksquiz.com/c-language-2/arrays-pointers/">Arrays</a></li>
+		<li id="menu-item-16832" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16832"><a href="http://geeksquiz.com/c-language-2/pointers/">Pointer Basics</a></li>
+		<li id="menu-item-16766" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16766"><a href="http://geeksquiz.com/c-language-2/advanced-pointer-c/">Advanced Pointer</a></li>
+		<li id="menu-item-16833" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16833"><a href="http://geeksquiz.com/c-language-2/string/">String</a></li>
+		<li id="menu-item-16862" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16862"><a href="http://geeksquiz.com/c-language-2/structure-union/">Structure &#038; Union</a></li>
+		<li id="menu-item-16834" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16834"><a href="http://geeksquiz.com/java/functions-2/">Functions</a></li>
+		<li id="menu-item-16835" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16835"><a href="http://geeksquiz.com/c-language-2/dynamic-memory-allocation/">Dynamic Memory Allocation</a></li>
+	</ul>
+</li>
+	<li id="menu-item-16769" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-16769"><a href="http://geeksquiz.com/c-plus-plus/">C ++</a>
+	<ul class="sub-menu">
+		<li id="menu-item-16772" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16772"><a href="http://geeksquiz.com/c-plus-plus/constructors/">Constructors</a></li>
+		<li id="menu-item-16771" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16771"><a href="http://geeksquiz.com/c-plus-plus/const-keyword/">const keyword</a></li>
+		<li id="menu-item-16770" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16770"><a href="http://geeksquiz.com/c-plus-plus/class-and-object/">Class and Object</a></li>
+		<li id="menu-item-16826" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16826"><a href="http://geeksquiz.com/c-plus-plus/const-keyword/">const keyword</a></li>
+		<li id="menu-item-16827" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16827"><a href="http://geeksquiz.com/c-plus-plus/static-keyword/">Static Keyword</a></li>
+		<li id="menu-item-16859" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16859"><a href="http://geeksquiz.com/c-plus-plus/function-overloading-2/">Function Overloading and Default Arguments</a></li>
+		<li id="menu-item-16861" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16861"><a href="http://geeksquiz.com/c-plus-plus/destructors/">Destructors</a></li>
+		<li id="menu-item-16860" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16860"><a href="http://geeksquiz.com/c-plus-plus/virtual-functions/">Virtual Functions</a></li>
+	</ul>
+</li>
+	<li id="menu-item-16809" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-16809"><a href="http://geeksquiz.com/java/">Java</a>
+	<ul class="sub-menu">
+		<li id="menu-item-16812" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16812"><a href="http://geeksquiz.com/java/packages/">Packages</a></li>
+		<li id="menu-item-16811" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16811"><a href="http://geeksquiz.com/java/operators/">Operators</a></li>
+		<li id="menu-item-16864" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16864"><a href="http://geeksquiz.com/java/final-keyword/">final keyword</a></li>
+		<li id="menu-item-16810" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16810"><a href="http://geeksquiz.com/java/inheritance-2/">Inheritance</a></li>
+		<li id="menu-item-16863" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16863"><a href="http://geeksquiz.com/java/abstract-class-and-interface-in-java/">Abstract Class and Interface</a></li>
+	</ul>
+</li>
+	<li id="menu-item-23697" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-23697"><a href="http://geeksquiz.com/python/">Python</a>
+	<ul class="sub-menu">
+		<li id="menu-item-23702" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23702"><a href="http://geeksquiz.com/functions-python/">Functions</a></li>
+		<li id="menu-item-23699" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23699"><a href="http://geeksquiz.com/data-type/">Data Type</a></li>
+		<li id="menu-item-23701" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23701"><a href="http://geeksquiz.com/operators/">Operators</a></li>
+		<li id="menu-item-23698" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23698"><a href="http://geeksquiz.com/output-type/">Output Type</a></li>
+		<li id="menu-item-23700" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23700"><a href="http://geeksquiz.com/miscellaneous/">Miscellaneous</a></li>
+	</ul>
+</li>
+	<li id="menu-item-23705" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23705"><a href="http://geeksquiz.com/quiz-corner/#DBMS%20Mock%20Tests">DBMS</a></li>
+	<li id="menu-item-23704" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23704"><a href="http://geeksquiz.com/quiz-corner/#Operating%20Systems%20Mock%20Tests">Operating Systems</a></li>
+	<li id="menu-item-23706" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23706"><a href="http://geeksquiz.com/quiz-corner/#Compiler%20Design%20Mock%20Tests">Compiler Design</a></li>
+	<li id="menu-item-23709" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23709"><a href="http://geeksquiz.com/quiz-corner/#Computer%20Organization%20and%20Architecture">Computer Organization</a></li>
+	<li id="menu-item-23708" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23708"><a href="http://geeksquiz.com/quiz-corner/#Theory%20of%20Computation%20Mock%20Tests">Theory of Computation</a></li>
+	<li id="menu-item-23710" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23710"><a href="http://geeksquiz.com/quiz-corner/#Engineering%20Mathematics">Engineering Mathematics</a></li>
+	<li id="menu-item-23707" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23707"><a href="http://geeksquiz.com/quiz-corner/#Computer%20Networks%20Mock%20Tests">Computer Networks</a></li>
+	<li id="menu-item-20238" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-20238"><a href="http://geeksquiz.com/general-aptitude-2/">General Aptitude</a>
+	<ul class="sub-menu">
+		<li id="menu-item-20233" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20233"><a href="http://geeksquiz.com/english/">English</a></li>
+		<li id="menu-item-20235" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20235"><a href="http://geeksquiz.com/puzzles/">Puzzles</a></li>
+		<li id="menu-item-20234" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20234"><a href="http://geeksquiz.com/probability/">Probability</a></li>
+		<li id="menu-item-20227" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20227"><a href="http://geeksquiz.com/arithmetic-aptitude/">Arithmetic Aptitude 1</a></li>
+		<li id="menu-item-20228" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20228"><a href="http://geeksquiz.com/arithmetic-aptitude-2/">Arithmetic Aptitude 2</a></li>
+		<li id="menu-item-20229" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20229"><a href="http://geeksquiz.com/arithmetic-aptitude-3/">Arithmetic Aptitude 3</a></li>
+		<li id="menu-item-20230" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20230"><a href="http://geeksquiz.com/arithmetic-aptitude-4/">Arithmetic Aptitude 4</a></li>
+		<li id="menu-item-20231" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20231"><a href="http://geeksquiz.com/arithmetic-aptitude-5/">Arithmetic Aptitude 5</a></li>
+		<li id="menu-item-20232" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20232"><a href="http://geeksquiz.com/arithmetic-aptitude-6/">Arithmetic Aptitude 6</a></li>
+	</ul>
+</li>
+</ul>
+</li>
+<li id="menu-item-16808" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-16808"><a href="http://geeksquiz.com/gate-corner-2/">GATE</a>
+<ul class="sub-menu">
+	<li id="menu-item-20217" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-20217"><a href="http://geeksquiz.com/gate-cs-2016-syllabus/">GATE CS 2016</a></li>
+	<li id="menu-item-20218" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-20218"><a href="http://geeksquiz.com/gate-cs-notes/">GATE CS Notes</a></li>
+	<li id="menu-item-18492" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-18492"><a href="http://www.gatecs.geeksquiz.com/">Gate CS Forum</a></li>
+	<li id="menu-item-20310" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-20310"><a href="http://geeksquiz.com/gate-cs-in-past/">GATE CS in Past</a></li>
+	<li id="menu-item-20388" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-20388"><a href="http://geeksquiz.com/lmns/">GATE CS LMN</a></li>
+	<li id="menu-item-22197" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-22197"><a href="http://geeksquiz.com/original-gate-previous-year-question-papers-cse-and-it/">GATE Official Papers</a></li>
+	<li id="menu-item-23657" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23657"><a href="http://geeksquiz.com/gate/">GATE CS 2016</a></li>
+</ul>
+</li>
+<li id="menu-item-16816" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-16816"><a href="http://geeksquiz.com/category/articles/">Article</a>
+<ul class="sub-menu">
+	<li id="menu-item-20203" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-20203"><a href="http://geeksquiz.com/category/articles/algorithms-articles/">Algorithms</a></li>
+	<li id="menu-item-20207" class="menu-item menu-item-type-taxonomy menu-item-object-category current-post-ancestor menu-item-20207"><a href="http://geeksquiz.com/category/articles/data-structures/">Data Structures</a></li>
+	<li id="menu-item-20208" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-20208"><a href="http://geeksquiz.com/category/articles/dbms-articles/">DBMS</a></li>
+	<li id="menu-item-20212" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-20212"><a href="http://geeksquiz.com/category/articles/operating-systems-articles/">Operating Systems</a></li>
+	<li id="menu-item-20204" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-20204"><a href="http://geeksquiz.com/category/articles/compiler-design-articles/">Compiler Design</a></li>
+</ul>
+</li>
+<li id="menu-item-23510" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23510"><a href="http://geeksquiz.com/books/">Books</a></li>
+<li id="menu-item-23511" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23511"><a href="http://www.gatecs.geeksquiz.com/index.php?qa=ask">Ask a Question</a></li>
+<li id="menu-item-23508" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23508"><a href="http://geeksquiz.com/contribute/">Contribute</a></li>
+<li id="menu-item-23731" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-23731"><a href="http://geeksquiz.com/placements/">Placements</a></li>
+</ul></div>		</nav><!-- #site-navigation -->
+		<div class="clear"></div>
+	</header><!-- #masthead -->
+
+	<div id="main" class="wrapper">	<div id="primary" class="site-content">
+		<div id="content" role="main">
+
+							
+	<article id="post-8969" class="post-8969 post type-post status-publish format-standard hentry category-queue">
+				<header class="entry-header">
+						<h1 class="entry-title">Queue | Set 1 (Introduction and Array Implementation)</h1>
+				
+			</header><!-- .entry-header -->
+
+				<div class="entry-content">
+			<p>Like <a href="http://geeksquiz.com/stack-set-1/" target="_blank">Stack</a>, <a href="http://en.wikipedia.org/wiki/Queue_%28data_structure%29">Queue </a>is a linear structure which follows a particular order in which the operations are performed.<span id="more-8969"></span> The order is <strong>F</strong>irst <strong>I</strong>n <strong>F</strong>irst <strong>O</strong>ut (FIFO).  A good example of queue is any queue of consumers for a resource where the consumer that came first is served first.<br />
+The difference between stacks and queues is in removing. In a stack we remove the item the most recently added; in a queue, we remove the item the least recently added.</p>
+<p><strong>Operations on Queue:</strong><br />
+Mainly the following four basic operations are performed on queue:</p>
+<p><strong>Enqueue: </strong>Adds an item to the queue. If the queue is full, then it is said to be an Overflow condition.<br />
+<strong>Dequeue:</strong> Removes an item from the queue. The items are popped in the same order in which they are pushed. If the queue is empty, then it is said to be an Underflow condition.<br />
+<strong>Front: </strong>Get the front item from queue.<br />
+<strong>Rear:</strong> Get the last item from queue.  </p>
+<p><strong>Applications of Queue:</strong><br />
+Queue is used when things don’t have to be processed immediatly, but have to be processed in <strong>F</strong>irst <strong>I</strong>n<strong>F</strong>irst <strong>O</strong>ut order like <a href="http://en.wikipedia.org/wiki/Breadth-first_search">Breadth First Search</a>. This property of Queue makes it also useful in following kind of scenarios.</p>
+<p><strong>1)</strong> When a resource is shared among multiple consumers. Examples include CPU scheduling, Disk Scheduling.<br />
+<strong>2) </strong>When data is transferred asynchronously (data not necessarily received at same rate as sent) between two processes. Examples include IO Buffers, pipes, file IO, etc.</p>
+<p>See <a href="http://introcs.cs.princeton.edu/43stack/">this </a>for more detailed applications of Queue and Stack.</p>
+<p><strong>Array implementation Of Queue</strong><br />
+For implementing queue, we need to keep track of two indices, front and rear.  We enqueue an item at the rear and dequeue an item from front. If we simply increment front and rear indices, then there may be problems, front may reach end of the array. The solution to this problem is to increase front and rear in circular manner (See <a href="http://www.cs.colostate.edu/~anderson/cs200/index.html/doku.php?id=recit:array_based_queue" target="_blank">this </a>for details)</p>
+<pre class="brush: cpp; title: ; notranslate" title="">
+// C program for array implementation of queue
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;limits.h&gt;
+
+// A structure to represent a queue
+struct Queue
+{
+    int front, rear, size;
+    unsigned capacity;
+    int* array;
+};
+
+// function to create a queue of given capacity. It initializes size of 
+// queue as 0
+struct Queue* createQueue(unsigned capacity)
+{
+    struct Queue* queue = (struct Queue*) malloc(sizeof(struct Queue));
+    queue-&gt;capacity = capacity;
+    queue-&gt;front = queue-&gt;size = 0; 
+    queue-&gt;rear = capacity - 1;  // This is important, see the enqueue
+    queue-&gt;array = (int*) malloc(queue-&gt;capacity * sizeof(int));
+    return queue;
+}
+
+// Queue is full when size becomes equal to the capacity 
+int isFull(struct Queue* queue)
+{  return (queue-&gt;size == queue-&gt;capacity);  }
+
+// Queue is empty when size is 0
+int isEmpty(struct Queue* queue)
+{  return (queue-&gt;size == 0); }
+
+// Function to add an item to the queue.  It changes rear and size
+void enqueue(struct Queue* queue, int item)
+{
+    if (isFull(queue))
+        return;
+    queue-&gt;rear = (queue-&gt;rear + 1)%queue-&gt;capacity;
+    queue-&gt;array[queue-&gt;rear] = item;
+    queue-&gt;size = queue-&gt;size + 1;
+    printf(&quot;%d enqueued to queue\n&quot;, item);
+}
+
+// Function to remove an item from queue.  It changes front and size
+int dequeue(struct Queue* queue)
+{
+    if (isEmpty(queue))
+        return INT_MIN;
+    int item = queue-&gt;array[queue-&gt;front];
+    queue-&gt;front = (queue-&gt;front + 1)%queue-&gt;capacity;
+    queue-&gt;size = queue-&gt;size - 1;
+    return item;
+}
+
+// Function to get front of queue
+int front(struct Queue* queue)
+{
+    if (isEmpty(queue))
+        return INT_MIN;
+    return queue-&gt;array[queue-&gt;front];
+}
+
+// Function to get rear of queue
+int rear(struct Queue* queue)
+{
+    if (isEmpty(queue))
+        return INT_MIN;
+    return queue-&gt;array[queue-&gt;rear];
+}
+
+// Driver program to test above functions./
+int main()
+{
+    struct Queue* queue = createQueue(1000);
+
+    enqueue(queue, 10);
+    enqueue(queue, 20);
+    enqueue(queue, 30);
+    enqueue(queue, 40);
+
+    printf(&quot;%d dequeued from queue\n&quot;, dequeue(queue));
+
+    printf(&quot;Front item is %d\n&quot;, front(queue));
+    printf(&quot;Rear item is %d\n&quot;, rear(queue));
+
+    return 0;
+}
+</pre>
+<p>Output:
+<pre>10 enqueued to queue
+20 enqueued to queue
+30 enqueued to queue
+40 enqueued to queue
+10 dequeued from queue
+Front item is 20
+Rear item is 40</pre>
+<p><strong>Time Complexity:</strong>  Time complexity of all operations like enqueue(), dequeue(), isFull(), isEmpty(), front() and rear() is O(1). There is no loop in any of the operations.</p>
+<p>Linked list implementation is easier, we will soon be discussing linked list implementation in next article.</p>
+<p>Please write comments if you find anything incorrect, or you want to share more information about the topic discussed above</p>
+
+			
+See <a href="http://geeksquiz.com/gate-corner-2/">GATE Corner</a> for all information about GATE CS and <a href="http://geeksquiz.com/quiz-corner/">Quiz Corner</a> for all Quizzes on GeeksQuiz.
+
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- pageBottomLargeRectangle -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:336px;height:280px"
+     data-ad-client="ca-pub-3708767432475742"
+     data-ad-slot="7367206910"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+		</div><!-- .entry-content -->
+				
+		
+
+		<footer class="entry-meta">
+		<span>Category: <a href="http://geeksquiz.com/category/articles/data-structures/queue/" rel="category tag">Queue</a></span> <span></span> 
+           	          	
+					</footer><!-- .entry-meta -->
+	</article><!-- #post -->
+                 
+<!-- Added on 29 Oct 2015 for next and previous from same category -->
+<nav class="nav-single">
+					<div class="assistive-text">Post navigation</div>
+					<span class="nav-previous"></span>
+					<span class="nav-next"><a href="http://geeksquiz.com/queue-set-2-linked-list-implementation/" rel="next">Next post in category</a></span>
+				</nav><!-- .nav-single -->
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<div class="fb-like" data-share="true" data-width="450" data-show-faces="true"></div>
+
+				
+<div id="disqus_thread">
+    </div>
+
+<script type="text/javascript">
+var disqus_url = 'http://geeksquiz.com/queue-set-1introduction-and-array-implementation/';
+var disqus_identifier = '8969 http://geeksquiz.com/?p=8969';
+var disqus_container_id = 'disqus_thread';
+var disqus_shortname = 'geeksquiz';
+var disqus_title = "Queue | Set 1 (Introduction and Array Implementation)";
+var disqus_config_custom = window.disqus_config;
+var disqus_config = function () {
+    /*
+    All currently supported events:
+    onReady: fires when everything is ready,
+    onNewComment: fires when a new comment is posted,
+    onIdentify: fires when user is authenticated
+    */
+    
+    
+    this.language = '';
+    
+    if (disqus_config_custom) {
+        disqus_config_custom.call(this);
+    }
+};
+
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+
+
+			
+		</div><!-- #content -->
+	</div><!-- #primary -->
+
+
+			<div id="secondary" class="widget-area" role="complementary">
+			<aside id="text-21" class="widget widget_text">			<div class="textwidget"><div class="fb-page" data-href="https://www.facebook.com/Geeksquiz/" data-tabs="timeline" data-height="150" data-small-header="true" data-adapt-container-width="true" data-hide-cover="true" data-show-facepile="true"><div class="fb-xfbml-parse-ignore"><blockquote cite="https://www.facebook.com/Geeksquiz/"><a href="https://www.facebook.com/Geeksquiz/">GeeksQuiz</a></blockquote></div></div></div>
+		</aside><aside id="text-8" class="widget widget_text">			<div class="textwidget"><script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- LargeRectangle -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:336px;height:280px"
+     data-ad-client="ca-pub-3708767432475742"
+     data-ad-slot="7436936511"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script></div>
+		</aside><aside id="text-4" class="widget widget_text">			<div class="textwidget"><form style="border:1px #ccc;padding:2px;text-align:left;" action="https://feedburner.google.com/fb/a/mailverify" method="post" target="popupwindow" onsubmit="window.open('https://feedburner.google.com/fb/a/mailverify?uri=Geeksquiz', 'popupwindow', 'scrollbars=yes,width=550,height=520');return true"><p>Subscribe and Never Miss an Article</p><input type="text" style="width:140px" placeholder="Email Address" name="email"/><input type="hidden" value="Geeksquiz" name="uri"/><input type="hidden" name="loc" value="en_US"/>&nbsp;&nbsp;<input type="submit" style="background-color: #4cb96b;" value="Subscribe" /></form></div>
+		</aside><aside id="text-9" class="widget widget_text">			<div class="textwidget"><script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- LargeSkyScraper -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:300px;height:600px"
+     data-ad-client="ca-pub-3708767432475742"
+     data-ad-slot="1597824119"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script></div>
+		</aside>		<aside id="recent-posts-2" class="widget widget_recent_entries">		<p class="widget-title">Recent Posts</p>		<ul>
+					<li>
+				<a href="http://geeksquiz.com/gate-gate-it-2006-question-13/">GATE | GATE IT 2006 | Question 13</a>
+						</li>
+					<li>
+				<a href="http://geeksquiz.com/gate-gate-it-2006-question-12/">GATE | GATE IT 2006 | Question 12</a>
+						</li>
+					<li>
+				<a href="http://geeksquiz.com/gate-gate-it-2006-question-11/">GATE | GATE IT 2006 | Question 11</a>
+						</li>
+					<li>
+				<a href="http://geeksquiz.com/placements-qa-lcm-and-hcf/">Placements | QA | LCM and HCF</a>
+						</li>
+					<li>
+				<a href="http://geeksquiz.com/placements-qa-numbers/">Placements | QA | Numbers</a>
+						</li>
+				</ul>
+		</aside><aside id="text-17" class="widget widget_text"><p class="widget-title">Popular Posts/Pages</p>			<div class="textwidget"><p><b><a href="http://geeksquiz.com/gate-corner-2/">GATE CS Corner </a></b><br />
+<a href="http://geeksquiz.com/commonly-asked-c-programming-interview-questions-set-1/">Commonly Asked C Programming Interview Questions </a><br />
+<a href="http://geeksquiz.com/c-language-2/pointers/">Pointers in C</a><br />
+<a href="http://geeksquiz.com/puzzle-21-3-ants-and-triangle/">3 Ants and Triangle Puzzle</a><br />
+<a href="http://geeksquiz.com/gate-cs-2015-set-1/">GATE-CS-2015(Set1)</a><br />
+<a href="http://geeksquiz.com/gate-cs-2015-set-2/">GATE-CS-2015(Set2)</a><br />
+<a href="http://geeksquiz.com/gate-cs-2015-set-3/">GATE-CS-2015(Set3)</a></p>
+</div>
+		</aside><aside id="text-7" class="widget widget_text"><p class="widget-title">Recent Discussions</p>			<div class="textwidget"><script type="text/javascript" src="http://geeksquiz.disqus.com//recent_comments_widget.js?num_items=6&hide_avatars=1&excerpt_length=50&hide_mods=0"></script></div>
+		</aside><aside id="categories-3" class="widget widget_categories"><p class="widget-title">Categories</p><label class="screen-reader-text" for="cat">Categories</label><select name='cat' id='cat' class='postform' >
+	<option value='-1'>Select Category</option>
+	<option class="level-0" value="107">Articles</option>
+	<option class="level-1" value="216">&nbsp;&nbsp;&nbsp;Algorithms</option>
+	<option class="level-2" value="318">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Searching and Sorting</option>
+	<option class="level-1" value="158">&nbsp;&nbsp;&nbsp;C</option>
+	<option class="level-1" value="203">&nbsp;&nbsp;&nbsp;C++</option>
+	<option class="level-1" value="257">&nbsp;&nbsp;&nbsp;Compiler Design</option>
+	<option class="level-1" value="256">&nbsp;&nbsp;&nbsp;Computer Networks</option>
+	<option class="level-1" value="317">&nbsp;&nbsp;&nbsp;Computer Organization and Architecture</option>
+	<option class="level-1" value="18">&nbsp;&nbsp;&nbsp;Data Structures</option>
+	<option class="level-2" value="310">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Hash</option>
+	<option class="level-2" value="305">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Linked List</option>
+	<option class="level-2" value="309">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Queue</option>
+	<option class="level-2" value="308">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stack</option>
+	<option class="level-2" value="304">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tree</option>
+	<option class="level-1" value="159">&nbsp;&nbsp;&nbsp;DBMS</option>
+	<option class="level-1" value="323">&nbsp;&nbsp;&nbsp;Difference</option>
+	<option class="level-1" value="264">&nbsp;&nbsp;&nbsp;Digital Electronic</option>
+	<option class="level-1" value="225">&nbsp;&nbsp;&nbsp;Interview Experiences</option>
+	<option class="level-1" value="214">&nbsp;&nbsp;&nbsp;Java</option>
+	<option class="level-1" value="254">&nbsp;&nbsp;&nbsp;Mathematics</option>
+	<option class="level-1" value="196">&nbsp;&nbsp;&nbsp;Operating Systems</option>
+	<option class="level-1" value="247">&nbsp;&nbsp;&nbsp;Puzzle</option>
+	<option class="level-1" value="350">&nbsp;&nbsp;&nbsp;Python Articles</option>
+	<option class="level-1" value="185">&nbsp;&nbsp;&nbsp;Theory of Computation</option>
+	<option class="level-1" value="258">&nbsp;&nbsp;&nbsp;Theory of Computation</option>
+	<option class="level-0" value="269">Library</option>
+	<option class="level-1" value="270">&nbsp;&nbsp;&nbsp;C</option>
+	<option class="level-0" value="366">Placements</option>
+	<option class="level-1" value="367">&nbsp;&nbsp;&nbsp;QA &#8211; Placements</option>
+	<option class="level-0" value="195">Programs</option>
+	<option class="level-0" value="112">Quizzes</option>
+	<option class="level-1" value="178">&nbsp;&nbsp;&nbsp;Aptitude</option>
+	<option class="level-1" value="113">&nbsp;&nbsp;&nbsp;Computer Science Quizzes</option>
+	<option class="level-2" value="14">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Algorithms</option>
+	<option class="level-2" value="2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C</option>
+	<option class="level-2" value="3">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C++</option>
+	<option class="level-2" value="12">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Computer Networks</option>
+	<option class="level-2" value="200">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Computer Organization and Architecture</option>
+	<option class="level-2" value="13">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data Structures</option>
+	<option class="level-2" value="11">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DBMS</option>
+	<option class="level-2" value="188">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Digital Logic</option>
+	<option class="level-2" value="7">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GATE</option>
+	<option class="level-2" value="4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Java</option>
+	<option class="level-2" value="10">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Operating Systems</option>
+	<option class="level-1" value="319">&nbsp;&nbsp;&nbsp;Python</option>
+	<option class="level-1" value="332">&nbsp;&nbsp;&nbsp;Python-Quizzes</option>
+	<option class="level-1" value="187">&nbsp;&nbsp;&nbsp;Web technologies</option>
+	<option class="level-0" value="1">Uncategorized</option>
+	<option class="level-0" value="190">Web Technology</option>
+</select>
+
+<script type='text/javascript'>
+/* <![CDATA[ */
+(function() {
+	var dropdown = document.getElementById( "cat" );
+	function onCatChange() {
+		if ( dropdown.options[ dropdown.selectedIndex ].value > 0 ) {
+			location.href = "http://geeksquiz.com/?cat=" + dropdown.options[ dropdown.selectedIndex ].value;
+		}
+	}
+	dropdown.onchange = onCatChange;
+})();
+/* ]]> */
+</script>
+
+</aside>		</div><!-- #secondary -->
+		</div><!-- #main .wrapper -->
+	<footer id="colophon" role="contentinfo">
+		<div class="site-info">
+		<div class="clear"></div>
+		</div><!-- .site-info -->
+		</footer><!-- #colophon -->
+<center>
+<div class="iconic-footer">
+
+@geeksforgeeks &nbsp;&nbsp;<a href="http://creativecommons.org/licenses/by-nc-nd/2.5/in/deed.en_US" title="Valid XHTML Strict 1.0">Some rights reserved</a>  <a href="http://www.geeksforgeeks.org/about/contact-us/"> &nbsp; &nbsp; &nbsp; &nbsp;Contact Us!</a>  <a href="http://www.geeksforgeeks.org/about/"> &nbsp; &nbsp; &nbsp; &nbsp;About Us!&nbsp; &nbsp; &nbsp; &nbsp;</a>
+
+			</div></center><!-- .site-info -->
+				<div class="clear"></div>
+</div><!-- #page -->
+
+        <script type="text/javascript">
+        // <![CDATA[
+        var disqus_shortname = 'geeksquiz';
+        (function () {
+            var nodes = document.getElementsByTagName('span');
+            for (var i = 0, url; i < nodes.length; i++) {
+                if (nodes[i].className.indexOf('dsq-postid') != -1) {
+                    nodes[i].parentNode.setAttribute('data-disqus-identifier', nodes[i].getAttribute('data-dsqidentifier'));
+                    url = nodes[i].parentNode.href.split('#', 1);
+                    if (url.length == 1) { url = url[0]; }
+                    else { url = url[1]; }
+                    nodes[i].parentNode.href = url + '#disqus_thread';
+                }
+            }
+            var s = document.createElement('script'); 
+            s.async = true;
+            s.type = 'text/javascript';
+            s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+            (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+        }());
+        // ]]>
+        </script>
+        <script type='text/javascript' src='http://geeksquiz.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/scripts/shCore.js?ver=3.0.9b'></script>
+<script type='text/javascript' src='http://geeksquiz.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/scripts/shBrushCpp.js?ver=3.0.9b'></script>
+<script type='text/javascript'>
+	(function(){
+		var corecss = document.createElement('link');
+		var themecss = document.createElement('link');
+		var corecssurl = "http://geeksquiz.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/styles/shCore.css?ver=3.0.9b";
+		if ( corecss.setAttribute ) {
+				corecss.setAttribute( "rel", "stylesheet" );
+				corecss.setAttribute( "type", "text/css" );
+				corecss.setAttribute( "href", corecssurl );
+		} else {
+				corecss.rel = "stylesheet";
+				corecss.href = corecssurl;
+		}
+		document.getElementsByTagName("head")[0].insertBefore( corecss, document.getElementById("syntaxhighlighteranchor") );
+		var themecssurl = "http://geeksquiz.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/styles/shThemeDefault.css?ver=3.0.9b";
+		if ( themecss.setAttribute ) {
+				themecss.setAttribute( "rel", "stylesheet" );
+				themecss.setAttribute( "type", "text/css" );
+				themecss.setAttribute( "href", themecssurl );
+		} else {
+				themecss.rel = "stylesheet";
+				themecss.href = themecssurl;
+		}
+		//document.getElementById("syntaxhighlighteranchor").appendChild(themecss);
+		document.getElementsByTagName("head")[0].insertBefore( themecss, document.getElementById("syntaxhighlighteranchor") );
+	})();
+	SyntaxHighlighter.config.strings.expandSource = '+ expand source';
+	SyntaxHighlighter.config.strings.help = '?';
+	SyntaxHighlighter.config.strings.alert = 'SyntaxHighlighter\n\n';
+	SyntaxHighlighter.config.strings.noBrush = 'Can\'t find brush for: ';
+	SyntaxHighlighter.config.strings.brushNotHtmlScript = 'Brush wasn\'t configured for html-script option: ';
+	SyntaxHighlighter.defaults['gutter'] = false;
+	SyntaxHighlighter.defaults['pad-line-numbers'] = false;
+	SyntaxHighlighter.defaults['toolbar'] = false;
+	SyntaxHighlighter.all();
+</script>
+<script type='text/javascript' src='http://geeksquiz.com/wp-includes/js/comment-reply.min.js?ver=4.2.7'></script>
+<script type='text/javascript' src='http://geeksquiz.com/wp-content/themes/iconic-one/js/selectnav.js?ver=1.0'></script>
+
+
+<script type="text/javascript">
+// Code for google analytics
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-37433965-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>       
+<script async type="text/javascript" src="//cdn.fancybar.net/ac/fancybar.js?zoneid=1502&serve=C6ADVKE&placement=geeksquiz" id="_fancybar_js"></script></body>
+</html>
+<!-- Dynamic page generated in 0.270 seconds. -->
+<!-- Cached page generated by WP-Super-Cache on 2016-03-15 23:23:33 -->
+
+<!-- super cache -->

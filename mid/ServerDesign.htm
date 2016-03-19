@@ -1,0 +1,1593 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><title>Dev Shed</title>	
+</head>
+<body>
+<p>
+<a href=http://www.devshed.com/c/a/Administration/Design-and-Architecture/>
+Here is a link to the original article,</a> but there are lots of annoying
+ads on it.  You can read my cached version.
+<p>
+<br>
+<p><table border="0" cellpadding="0" cellspacing="0">
+<tbody><tr>
+
+<td valign="top">
+	<span class="txt">
+	<div id="intelliTxt"> Servers
+typically need to be able to handle multiple clients simultaneously.
+This presents several problems that need to be solved. This article
+addresses three of those issues: allowing multiple clients to connect
+and stay connnected, efficient use of resources, and keeping the server
+responsive to each of the clients. It is excerpted from chapter five of
+the book <em>The Definitive Guide to Linux Networking Programming</em>, written by Keir Davis et. al. (Apress, 2004; ISBN: 1590593227).
+
+
+
+
+
+<p align="left"><strong><a rel="nofollow" href="http://www.amazon.com/gp/product/1590593227/103-3867530-3465405?v=glance&amp;n=283155&amp;n=507846&amp;s=books&amp;v=glance"><img title="" alt="" src="ServerDesign_files/cover69.JPG" align="left" border="0" height="123" width="95"></a>Client-Server Architecture </strong></p>
+<p><strong>A NETWORK SERVER APPLICATION THAT </strong>can handle only
+one client at a time isn&#8217;t very useful. For example, consider an IRC
+chat application wherein only one client could connect to an IRC chat
+server at a time. How much fun would it be to chat with yourself? A
+server is typically required to handle multiple clients simultaneously.</p>
+<p>Handling multiple clients at the same time requires solving several
+problems. The first issue is allowing multiple clients to connect and
+stay connected simultaneously. In this chapter, we cover three
+different general strategies for handling this: multiplexing, forking,
+and threads. The second issue is one of resources and how to
+efficiently utilize the memory and processor(s) available. The final
+issue is keeping the server responsive to each of the clients&#8212;in other
+words, not allowing a client to monopolize the server at the expense of
+the other connected clients. This is especially important when large
+amounts of data are to be transferred between the client and server.</p>
+<p>This chapter will explain the various strategies available to handle
+multiple clients. In addition, we&#8217;ll build servers of each type. We&#8217;ll
+start off with a client test program.</p><strong>Client Test Program </strong>
+<p>A server isn&#8217;t much good without a client program to connect to it.
+In this chapter we&#8217;ll look at and implement several types of servers.
+To see how they work we&#8217;ll use a client test program. This will help us
+see how each server type handles multiple clients.</p>
+<p>To test a server you&#8217;ll need to open two xterm windows. In the first
+window, execute the server that you wish to test. In the second window,
+execute the client test program. You should see output in both the
+server and client windows.</p>
+<p>Here&#8217;s our test client program, <font face="Courier">client.c</font>. We&#8217;ll use it to test the various server examples throughout this chapter. First, we include the needed system header files:</p>
+<p>
+<font face="Courier">/* client.c *
+/<br>
+#include &lt;stdio.h&gt;<br>
+</font><font face="Courier">#include &lt;sys/types.h&gt;<br>
+#include &lt;sys/socket.h&gt;<br>
+#include &lt;netinet/in.h&gt;<br>
+#include &lt;string.h&gt;</font></p>
+<p>
+We&#8217;ll use the
+<font face="Courier">fork()</font>
+system call to generate a number of child processes to simulate
+multiple clients connecting to the server at the same time. This is the
+forward declaration of the process function:</p>
+<p>
+<font face="Courier">void child_func(int childnum);</font></p>
+<p>
+This is our
+<font face="Courier">main()</font>
+function. We check the command line to see how many child processes to create.</p>
+<p>
+<font face="Courier">int main(int argc, char *argv[])<br>
+</font><font face="Courier">{<br>
+&nbsp; </font><font face="Courier">int nchildren = 1;<br>
+&nbsp; </font><font face="Courier">int pid;<br>
+&nbsp; </font><font face="Courier">int x;<br>
+&nbsp; </font><font face="Courier">if (argc &gt; 1) {<br>
+&nbsp;&nbsp;&nbsp; nchildren = atoi(argv[1]);<br>
+&nbsp; }</font></p>
+<p>
+Next, we loop and create the specified number of children. We will look at this later, but if
+<font face="Courier">fork()</font>
+returns 0, then it has returned in the child process, so we call our child function.</p>
+<p>
+<font face="Courier">&nbsp; for (x = 0; x &lt; nchildren; x++) {<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">if ((pid = fork()) == 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">child_func(x + 1);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">exit(0);<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">}<br>
+&nbsp; }</font></p>
+<p>
+Once we&#8217;ve created all of the children, the parent process waits for them to finish before returning.</p>
+<p>
+<font face="Courier">&nbsp; wait(NULL);<br>
+</font><font face="Courier">&nbsp; return 0;<br>
+}</font></p>
+<p>
+Next, we create our child function. This is where we connect to the server.</p>
+<p>
+<font face="Courier">void child_func(int childnum)<br>
+{<br>
+&nbsp; int sock;<br>
+&nbsp; struct sockaddr_in sAddr;<br>
+&nbsp; char buffer[25];</font></p>
+<p>
+We create our client socket and bind it to a local port.</p>
+<p>
+<font face="Courier">&nbsp; memset((void *) &amp;sAddr, 0, sizeof(struct sockaddr_in));<br>
+&nbsp; sAddr.sin_family = AF_INET;&nbsp; <br>
+&nbsp; sAddr.sin_addr.s_addr = INADDR_ANY; <br>
+&nbsp; sAddr.sin_port = 0;<br>
+&nbsp; </font><font face="Courier">sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);<br>
+&nbsp; bind(sock, (const struct sockaddr *) &amp;sAddr, sizeof(sAddr));</font></p>
+<p>
+Then we attempt to connect to whichever server is running on the local machine.</p>
+<p>
+<font face="Courier">&nbsp; sAddr.sin_addr.s_addr = inet_addr("127.0.0.1");<br>
+&nbsp; sAddr.sin_port = htons(1972);<br>
+&nbsp; </font><font face="Courier">if (connect(sock, (const struct sockaddr *) &amp;sAddr, sizeof(sAddr)) != 0) {<br>
+&nbsp;&nbsp; &nbsp;perror("client");<br>
+&nbsp;&nbsp;&nbsp; return;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+Once connected, we send some characters to the server and read what the server sends back. We also insert some pauses, using
+<font face="Courier">sleep()</font>
+to keep the clients from connecting and disconnecting so quickly that
+we don&#8217;t have more than one connected to a server at the same time.</p>
+<p>
+<font face="Courier">&nbsp; snprintf(buffer, 128, "data from client #%i.", childnum);<br>
+&nbsp; sleep(1);<br>
+&nbsp; printf("child #%i sent %i chars\n", childnum, send(sock, buffer,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">strlen(buffer), 0));<br>
+&nbsp; sleep(1);<br>
+&nbsp; printf("child #%i received %i chars\n", childnum,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">recv(sock, buffer, 25, 0));</font></p>
+<p>Finally, we close the connection and return.</p>
+<p>
+<font face="Courier">&nbsp; sleep(1);<br>
+&nbsp; close(sock);<br>
+}</font></p>
+<p align="left">
+The test client can be compiled with the following command:</p><strong><font face="Courier">$&gt;gcc -o client client.c</font> </strong>
+<p>This runs the client with five child processes, each connecting to the server.</p>
+<p><strong><font face="Courier">$&gt;./client 5</font></strong></p>
+<p> </p>
+<p>The first strategy for handling multiple connections that we&#8217;ll discuss is <i>multi</i><i>plexing</i>.
+Multiplexing is a way of handling multiple clients in a single server
+process. The application allows clients to connect to the server and
+adds them to a <i>watch list</i>. This watch list is just an array of
+socket descriptors. Then the operating system tells the application
+which clients (if any) need to be serviced or if a new client has
+established a connection.</p>
+
+<p>As an example, think of a restaurant with only one waiter. The
+waiter is responsible for attending to all the tables at the same time.
+As customers come in and are seated, the waiter adds them to a mental
+list of tables to check on. Then, when a table needs attention, he
+attends to it. Of course, only one table may be serviced at a time, and
+the possibility exists of a single table using up all the waiter&#8217;s time.</p><i><strong>The select() Function</strong></i>
+<p>
+<font face="Courier">select()</font>
+is a system function that allows us to specify a set of descriptors
+(sockets, in this case) that we are interested in. It is worth noting
+that
+<font face="Courier">select()</font>works with any descriptor,
+including files, pipes, FIFOs, etc. The system puts our program to
+sleep, polls the sockets for activity, and wakes the program when an
+event occurs at one of the sockets. This keeps us from writing a busy
+loop and wasting clock cycles. The<font face="Courier">
+select()</font>
+function prototype looks like this:</p>
+<p>
+<font face="Courier">#include &lt;sys/select.h&gt;<br>
+int select(int n, fd_set *readfds, fd_set *writefds,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fd_set *exceptfds, struct timeval *timeout);</font></p>
+<p>
+The first parameter specifies the highest numbered descriptor (plus 1)
+to watch in the three sets. It is important to remember that you must
+add 1 to the highest numbered descriptor in the sets. The reason is
+that the watch lists are linear arrays of bit values, with 1 bit for
+every available descriptor in the system. What we are really passing to
+the function is the number of descriptors in the array that it needs to
+copy. Since descriptors start at 0, the number we pass is the largest
+descriptor number plus 1.</p>
+<p>Next, we provide three descriptor sets. The first set contains
+descriptors to be watched for read events, the second for write events,
+and the third for exceptions or error events. Finally, we provide a
+<font face="Courier">timeval</font>
+that specifies a timeout. If no event occurs in any of the sets before the timeout, then
+<font face="Courier">select()</font>
+returns a 0. We can also specify a null pointer for the
+<font face="Courier">timeout</font>parameter. In this case, the call
+will not return until an event happens on one of the watched
+descriptors. Otherwise, it returns the number of descriptors in the
+three sets.</p>
+<p>It is important to note that
+<font face="Courier">select()</font>
+does modify the descriptor sets that are passed to it. Upon return, the
+sets will contain only those descriptors that had some activity. To
+call select multiple times, we must retain a copy of the original sets.
+Other than a socket error, if any error occurs, then &#8211;1 is returned.</p>
+<p>Four macros are provided to help deal with the descriptor sets. They are<font face="Courier">
+FD_CLR
+,
+FD_ISSET
+,
+FD_SET
+,</font> and
+<font face="Courier">FD_ZERO</font>
+. Each takes a pointer to a variable type
+<font face="Courier">fd_set
+</font>. Except for
+<font face="Courier">FD_ZERO</font>
+, each takes a descriptor as well. It is important to note that the
+behavior of these macros is undefined if you pass in a descriptor that
+is less than zero or greater than FD_SETSIZE. The macros are prototyped
+as follows:</p>
+<ol type="disc">
+<li>
+<font face="Courier">void FD_SET(int fd, fd_set *set)
+:
+FD_SET</font>
+flags a descriptor to be watched. <br>
+</li>
+<li>
+<font face="Courier">void FD_CLR(int fd, fd_set *set)
+:
+FD_CLR</font>
+resets the flag set to a descriptor. <br>
+</li>
+<li><font face="Courier">int FD_ISSET(int fd, fd_set *set)
+:</font> After
+<font face="Courier">select()</font>
+returns,
+<font face="Courier">FD_ISSET</font>
+determines whether a descriptor is flagged or not. <br>
+</li>
+<li>
+<font face="Courier">void FD_ZERO(fd_set *set)
+:
+FD_ZERO</font>
+clears the set so that no descriptors are watched. <br>
+</li></ol>
+<blockquote style="margin-right: 0px;" dir="ltr">
+<p>A flagged descriptor indicates activity at the socket.</p>
+<p>Here is a code fragment example of using<font face="Courier">
+select()</font>
+:</p></blockquote>
+<p>
+<font face="Courier">&nbsp; int sd; /* our socket descriptor *
+/<br>
+&nbsp; fd_set sockreadset;<br>
+</font><font face="Courier">&nbsp; FD_ZERO(&amp;sockreadset);<br>
+&nbsp; FD_SET(sd, &amp;sockreadset);<br>
+&nbsp; select(FD_SETSIZE, sockreadset, NULL,&nbsp;&nbsp;<br>
+NULL, NULL);<br>
+&nbsp; if (FD_ISSET(sockreadset))<br>
+&nbsp;&nbsp; &nbsp; </font><font face="Courier">printf("Socket ready for read.\n");</font></p>
+<p>
+In this example, the program will wait indefinitely for a read event to occur on the descriptor whose value is specified in
+<font face="Courier">sd</font>
+.</p><i><strong>A Multiplexing Server</strong></i>
+<p>In our example, the server uses
+<font face="Courier">select()</font>
+to listen for new connections, check for client disconnects, and read
+events on existing connections. If a read event occurs on the server&#8217;s
+listening socket, then a new connection is initiated and the server
+calls
+<font face="Courier">accept()</font>
+to get the new socket descriptor. The new descriptor is then added to the server&#8217;s watch set.</p>
+<p>On the other hand, if a read event occurs on another socket, then the server calls
+<font face="Courier">recv</font>to retrieve any data sent by the
+client. If no data is received, then the client has disconnected, and
+the server removes the respective descriptor from the watch set.
+Otherwise, the data is read and echoed back to the client. Figure 5-1
+shows the basic architecture of a multiplexing server.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_1.JPG" height="308" width="400"><br>
+<strong>Figure 5-1.</strong>&nbsp; <em>Basic architecture of a multiplexing server</em></p>
+<p>Here is the program (
+<font face="Courier">server1.c</font>
+) to implement the preceding example:</p>
+<p>
+<font face="Courier">/* server1.c */<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;sys/ioctl.h&gt;<br>
+#include &lt;sys/types.h&gt;<br>
+#include &lt;sys/socket.h&gt;<br>
+#include &lt;netinet/in.h&gt;<br>
+</font><font face="Courier">int main(int argc, char *argv[])</font></p>
+<p>
+Next, we set up the variables that we&#8217;ll need. As<font face="Courier">
+select()</font>
+modifies the set passed to it, we use two variables: one to maintain our state and another to interact with the
+<font face="Courier">select()</font>
+function. We need to keep the master set separately:</p>
+<p>
+<font face="Courier">{<br>
+&nbsp;&nbsp;&nbsp; struct sockaddr_in sAddr;<br>
+&nbsp;&nbsp;&nbsp; fd_set readset, testset;<br>
+&nbsp;&nbsp;&nbsp; int listensock;<br>
+&nbsp;&nbsp;&nbsp; int newsock;<br>
+&nbsp;&nbsp;&nbsp; char buffer[25];<br>
+&nbsp;&nbsp;&nbsp; int result;<br>
+&nbsp;&nbsp;&nbsp; int nread;<br>
+&nbsp;&nbsp;&nbsp; int x;<br>
+&nbsp;&nbsp;&nbsp; int val;</font></p>
+<p>
+Then we create the listening socket. This is the socket that will listen for incoming connections from the clients.</p>
+<p>
+<font face="Courier">&nbsp; listensock = socket(AF_INET, SOCK_STREAM,&nbsp;<br>
+&nbsp; IPPROTO_TCP);</font></p>
+<p>
+Afterward, we set the socket option
+<font face="Courier">SO_REUSEADDR
+</font>. While debugging, you&#8217;ll be starting and stopping your server
+often. Linux tends to keep the address and port that was used by your
+program reserved. This option allows you to avoid the dreaded &#8220;address
+in use&#8221; error.</p>
+<p>
+<font face="Courier">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; val = 1;<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;result = setsockopt(listensock,&nbsp; <br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;SOL_SOCKET, SO_REUSEADDR, &amp;val,<br>
+sizeof(val));<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; perror("server1");<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">}</font></p>
+<p>
+Here, we bind the socket to the listening port. We use the special address
+<font face="Courier">INADDR_ANY</font>
+to specify that we&#8217;ll listen on all IP addresses associated with the server:</p>
+<p>
+<font face="Courier">&nbsp; sAddr.sin_family = AF_INET;<br>
+&nbsp; sAddr.sin_port = htons(1972);&nbsp; <br>
+&nbsp; sAddr.sin_addr.s_addr = INADDR_ANY;<br>
+</font><font face="Courier">&nbsp; result = bind(listensock, (struct sockaddr<br>
+*) &amp;sAddr, sizeof(sAddr));<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">perror("server1");<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">return 0;<br>
+</font><font face="Courier">&nbsp; }</font></p>
+<p>
+We put the socket into &#8220;listen&#8221; mode so that we can accept incoming connections:</p>
+<p>
+<font face="Courier">&nbsp; result = listen(listensock, 5);<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">perror("server1");<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+We initialize our descriptor set using
+<font face="Courier">FD_ZERO</font>
+. Then we add the listening socket to the set so that the system will notify us when a client wishes to con
+nect. Connection requests are treated as read events on the listening socket:</p>
+<p>
+<font face="Courier">&nbsp; FD_ZERO(&amp;readset)
+;<br>
+&nbsp; FD_SET(listensock, &amp;readset);</font></p>
+<p>
+Notice that we assign our descriptor set to an alternate variable to be passed to the
+<font face="Courier">select()</font>
+function. As noted previously, this is because
+<font face="Courier">select()</font>
+will alter the set we pass, so that upon return, only those sockets with activity are flagged in the set. Our call to
+<font face="Courier">select()</font>
+signifies that we are interested only in read events. In a real-world
+application, we would need to be concerned with errors and pos
+sibly write events. We loop through the entire set of descriptors.
+<font face="Courier">FD_SETSIZE</font>is a constant set in the kernel
+and is usually 1024. A more efficient server implementation would keep
+track of the highest numbered descriptor and not loop through the
+entire set.
+<font face="Courier">FD_ISSET</font>is used to determine if the
+descriptor is flagged as having activity. It returns a nonzero value if
+the supplied descriptor is set as having had activity; otherwise, it
+returns 0.</p>
+<p>
+<font face="Courier">&nbsp; while (1)
+{<br>
+&nbsp;&nbsp;&nbsp; testset = readset;<br>
+&nbsp;&nbsp;&nbsp; result = select(FD_SETSIZE, &amp;testset,&nbsp;<br>
+NULL, NULL, NULL);<br>
+&nbsp;&nbsp; &nbsp;if (result &lt; 1) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;</font><font face="Courier">perror("server1");<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;return 0;<br>
+&nbsp;&nbsp; &nbsp;}<br>
+&nbsp;&nbsp; &nbsp;</font><font face="Courier">for (x = 0; x &lt; FD_SETSIZE; x++) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;if (FD_ISSET(x, &amp;testset)) {</font></p>
+<p>
+If the activity is on the listening socket, then we accept the new
+connection and add its socket to our watch set. Otherwise, we read
+characters from the client. If the number of characters read is less
+than or equal to zero, then the client is assumed to have closed the
+connection. We close the connection on our side and remove the
+descriptor from our watch list. Otherwise, we echo the charac
+ters to the screen and back to the client.</p>
+<p>
+<font face="Courier">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (x == listensock)
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;newsock = accept(listensock, NULL,NULL);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FD_SET(newsock, &amp;readset);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">} else {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nread = recv(x, buffer, 25, 0);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (nread &lt;= 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">close(x);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; FD_CLR(x, &amp;readset);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf("client on descriptor #%i disconnected\n", x);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;</font><font face="Courier">} else {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;buffer[nread] = '\0';<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;printf("%s\n", buffer);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;send(x, buffer, nread, 0);<br>
+</font><font face="Courier">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+</font><font face="Courier">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;}<br>
+</font><font face="Courier">}</font></p>
+<p>The server can be compiled with a command similar to the example
+client. Figure 5-2 shows a sample of the output obtained on executing
+the program.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/image_2.JPG" height="275" width="386"><br>
+<strong>Figure 5-2.</strong>&nbsp; <em>Output from a multiplexing server</em></p>
+<p align="left">Notice that, for a brief time, all five clients are connected at the same time.</p><strong>&nbsp;</strong>
+<p>In the UNIX environment, the traditional way to handle multiple clients is to use the <font face="Courier">fork()</font> system call. When an application calls
+<font face="Courier">fork()</font>
+, an exact duplicate of the calling program is made, right down to the
+program counter (PC), and a new child process is started with that
+copy. Everything (except the parent&#8217;s <i>process ID</i>,
+or PID) is copied. This includes the parent&#8217;s heap, stack, data space,
+and all open descriptors. Then, the system call returns twice: once in
+the calling program and the next time in the child process. The return
+value in the calling program is the PID of the new child process, while
+in the child process it is 0.</p>
+
+<p>This can be a little confusing at first. How can a function that is
+called once return twice, you ask? If you think carefully about what
+the
+<font face="Courier">fork()</font>
+call does, though, it is very logical. Calling
+<font face="Courier">fork()</font>
+makes an exact copy of the program. This means that when the copy begins execution, it starts at the exact place the call
+ing program was, which is the
+<font face="Courier">fork()</font>
+call.</p>
+<p>Let&#8217;s see, in a little more detail, the consequences of copying
+descriptors. As mentioned previously, when the child process is
+created, everything is copied to the child, including all open
+descriptors. The Linux kernel keeps a reference count for each
+descriptor. So, when a child is created, the reference count is
+incremented for each copy. As a result, the client must close the
+descriptor of the listening socket used by the parent process, and the
+parent must close the descriptor of the client socket used by the child
+process. This will become evident on executing the program
+<font face="Courier">server2.c</font>
+. If
+<font face="Courier">close()</font>is not called on these sockets, the
+reference count in the kernel will be wrong, resulting in open or stale
+connections potentially abusing or exhausting system resources as time
+goes on.</p>
+<p>Using the
+<font face="Courier">fork()</font>
+system call to handle multiple clients has several advantages. First,
+it&#8217;s simple. Creating a new process to handle each client is easy to
+implement. Second, using a process per client keeps any one client from
+monopolizing the server, because the Linux kernel will preemptively
+swap the processes in and out. Third, other child processes won&#8217;t be
+affected if one of the child processes crashes, because the kernel
+prevents one process from damaging memory in another process.</p>
+<p>The
+<font face="Courier">fork()</font>
+system call isn&#8217;t without its disadvantages, however. The most notable
+problem with the multiprocess approach is the lack of shared memory.
+Over the years, shared memory solutions (like
+<font face="Courier">shmget()
+)</font> have been made available for multiprocess applications, but it isn&#8217;t as elegant as with a threaded approach.
+<font face="Courier">shmget()</font>is a system call that allows the
+allocation of a shared memory segment that can be accessed by multiple
+processes. The way it works is that the parent process creates a shared
+memory segment upon startup. Then, as each child is created, it
+inherits the attachment to the shared memory. Even with the shared
+memory, access to it must be synchronized with semaphores. Finally,
+with large programs, significant resources can be used because
+everything must be copied for each child, resulting in slow performance
+and potential exhaustion of resources.</p>
+<blockquote style="margin-right: 0px;" dir="ltr"><b>
+<hr>CAUTION&nbsp; </b><i>When using the</i>
+<font face="Courier">fork()</font>
+<i>system call, you must be very careful to not create zombies. Zombies
+are child processes that occur when the parent process exits without
+calling</i>
+<font face="Courier">wait()</font>
+<i>or</i>
+<font face="Courier">waitpid()</font>
+<i>on the child process. The kernel keeps the exit informa</i><i>tion for these child processes until the parent process calls</i>
+<font face="Courier">wait()</font>
+<i>or</i>
+<font face="Courier">waitpid()</font>
+<i>to retrieve it. If the parent exits without retrieving the exit
+information, the child processes remain in a zombie state. Eventually
+the kernel will clean them up, but it is best to avoid them in the
+first place to free up system resources. The simplest way to handle
+this issue is by trapping the</i><font face="Courier">
+SIGCHLD</font>
+<i>signal and calling</i>
+<font face="Courier">waitpid()</font>
+<i>. This is demonstrated in the forking server in the next section.
+<hr>
+<p dir="ltr"><i><strong>One Process Per Client</strong></i> </p></i></blockquote>
+<p>The simplest architecture for a multiprocess server is to use one
+process per client. The server simply waits for a client to connect and
+then creates a process to handle it. From an application design
+standpoint, this is much less cumbersome than the multiplexing approach
+we examined earlier. Each client has a dedicated process, and the
+client logic flows linearly without worrying about stopping to service
+other connected clients, as compared to multiplexing, where a single
+process must deal with all clients simultaneously.</p>
+<p><i><strong>A Forking Server</strong></i></p>
+<p>In the following program (
+<font face="Courier">server2.c</font>
+), the initial process waits for a client to connect. It then calls
+<font face="Courier">fork()</font>
+to create a new child process to handle the client. Next, the child
+process reads the data from the client and echoes it back. Finally, the
+connection is closed, and the child exits. Meanwhile, the parent
+process loops back to listen for another connection. Figure 5-3 shows
+the basic architecture for a multiprocess server.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_3.JPG" height="288" width="400"><br>
+<strong>Figure 5-3.</strong>&nbsp; <em>Basic architecture for a multiprocess server</em></p>
+<p>The initial section of the code is similar to the earlier program,
+<font face="Courier">server1.c</font>
+:</p>
+<p>
+<font face="Courier">/* server2.c *
+/<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;sys/ioctl.h&gt;<br>
+#include &lt;sys/types.h&gt;<br>
+</font><font face="Courier">#include &lt;sys/socket.h&gt;<br>
+#include &lt;netinet/in.h&gt;</font></p>
+<p>
+To trap the child exits and prevent zombies, we also need the following two header files:</p>
+<p>
+<font face="Courier">#include &lt;sys/wait.h&gt;<br>
+#include &lt;signal.h&gt;</font></p>
+<p>
+Here&#8217;s our signal handler. It simply calls
+<font face="Courier">waitpid()</font>
+for any exited children. The reason we call it in a loop is that there
+may not be a one-to-one correlation between exited children and calls
+to our signal handler. POSIX does not allow for the queuing of signal
+calls, so our handler may be called once when several chil
+dren have exited and we need to call
+<font face="Courier">waitpid()</font>
+for each one.</p>
+<p>
+<font face="Courier">void sigchld_handler(int signo)<br>
+{<br>
+&nbsp; while (waitpid(-1, NULL, WNOHANG) &gt; 0);<br>
+}</font></p>
+<p><font face="Courier"><br>
+</font>Next, we declare the variables that we will need.</p>
+<p>
+<font face="Courier">int main(int argc, char *argv[])<br>
+</font><font face="Courier">{<br>
+&nbsp; struct sockaddr_in sAddr;<br>
+&nbsp; int listensock;<br>
+&nbsp; int newsock;<br>
+&nbsp; char buffer[25];<br>
+&nbsp; int result;<br>
+&nbsp; int nread;<br>
+&nbsp; int pid;<br>
+&nbsp; int val;</font></p>
+<p>
+Then we create the socket that will accept the incoming connections.</p>
+<p>
+<font face="Courier">&nbsp; listensock = socket(AF_INET, SOCK_STREAM, <br>
+&nbsp; IPPROTO_TCP);</font></p>
+<p>
+Here we set our<font face="Courier">
+SO_REUSEADDR</font>
+option.</p>
+<p>
+<font face="Courier">&nbsp; val = 1;<br>
+&nbsp; result = setsockopt(listensock,&nbsp;<br>
+SOL_SOCKET, SO_REUSEADDR, &amp;val, sizeof<br>
+(val));<br>
+&nbsp; if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">perror(&#8220;server2&#8221;);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; }</font></p>
+<p>
+We then bind it to a local port and all addresses associated with the machine.</p>
+<p>
+<font face="Courier">&nbsp; sAddr.sin_family = AF_INET;<br>
+&nbsp; sAddr.sin_port = htons(1972); <br>
+&nbsp; sAddr.sin_addr.s_addr = INADDR_ANY;<br>
+&nbsp; result = bind(listensock, (struct sockaddr<br>
+*) &amp;sAddr, sizeof(sAddr));<br>
+&nbsp; if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; </font><font face="Courier">perror("server2");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; }</font></p>
+<p>
+Afterward, we put the socket into listening mode to listen for incoming connections.</p>
+<p>
+<font face="Courier">&nbsp; result = listen(listensock, 5);<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp; &nbsp;perror("server2");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+Before we start looping, we install our signal handler.</p>
+<p>
+<font face="Courier">signal(SIGCHLD, sigchld_handler);</font></p>
+<p>
+We then call
+<font face="Courier">accept()</font>
+and allow it to block waiting for connection requests from clients. After accept returns, we call
+<font face="Courier">fork()</font>
+to create a new process. If it returns 0, then we are in the child process; otherwise, the PID of the new child is returned.</p>
+<p>
+<font face="Courier">&nbsp; while (1) {<br>
+&nbsp;&nbsp;&nbsp; newsock = accept(listensock, NULL,&nbsp;<br>
+NULL);<br>
+&nbsp;&nbsp;&nbsp; if ((pid = fork()) = = 0) {</font></p>
+<p>Once in the child process, we close the listening socket. Remember
+that all descriptors are copied from the parent process to the child.
+The child process does not need the listening socket any longer, so we
+close the child&#8217;s reference on that socket. However, the socket will
+remain open in the parent process. Next, we read characters from the
+client and echo them to the screen. Finally, we send the characters
+back to the client, close the socket, and exit the child process:</p>
+<p>
+<font face="Courier">&nbsp; printf("child process %i created.\n",&nbsp;<br>
+getpid());<br>
+&nbsp; close(listensock);<br>
+</font><font face="Courier">&nbsp; nread = recv(newsock, buffer, 25, 0);&nbsp; <br>
+&nbsp; buffer[nread] = '\0';<br>
+&nbsp; printf("%s\n", buffer);<br>
+&nbsp; send(newsock, buffer, nread, 0);<br>
+&nbsp; close(newsock);<br>
+&nbsp; printf("child process %i finished.\n",&nbsp;<br>
+getpid());<br>
+&nbsp; exit(0);<br>
+</font><font face="Courier">}</font></p>
+<p>
+This line is only reached in the parent process. Since the child
+process has a copy of the client socket, the parent process closes its
+reference here to decrease the kernel reference count. The socket will
+remain open in the child process:</p>
+<p>
+<font face="Courier">&nbsp;&nbsp;&nbsp; close(newsock);<br>
+&nbsp; }<br>
+}</font></p>
+<p>
+The server can be compiled with a command similar to the example
+client. Figure 5-4 shows sample output obtained on executing the
+preceding program. The client was run with five child processes.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/image_4.JPG" height="325" width="389"><br>
+<strong>Figure 5-4.</strong>&nbsp; <em>Output from a multiprocess server</em></p>
+<p>While the preceding strategy is simple to implement, there is a
+performance penalty to be paid. Creating a copy of a running process is
+expensive (in terms of time as well as resources), especially for large
+applications. As clients start con
+necting in large numbers, there can be a noticeable delay in launching
+the child process.</p>
+<p>One strategy to mitigate the startup costs for a process is to fork
+a number of processes into a &#8220;process pool&#8221; when the application
+starts. This is called <i>pre-forking</i>, and it restricts all of the
+costs associated with creating a child process to the initialization
+section of the application. When a client connects, the process to
+handle it has already been created. Using this method,
+<font face="Courier">accept()</font>is not called in the parent
+process, but in each child process. Unlike the previous example, the
+listening socket descriptor will not be closed in the child process. In
+fact, all of the children will be calling
+<font face="Courier">accept()</font>on the same listening socket. When
+a client connects, the kernel chooses one of the children to handle the
+connection. Since the child is already running, there is no process
+creation delay.</p>
+<p><i><strong>Example: Apache Web Server</strong></i></p>
+<p>The original Apache Web Server (prior to version 2),
+<font face="Courier"><a rel="nofollow" href="http://httpd.apache.org/">http://httpd.apache.org</a></font>
+, uses process pools. However, it takes them one step further by making
+the process pool size dynamic. In the Apache configuration file, you
+are able to specify the number of initial children, the maximum number
+of children, the minimum number of idle children, and the maximum
+number of idle children.</p>
+<p>The initial and maximum number of children is pretty
+straightforward. Specifying the minimum and maximum number of idle
+children allows the server to handle sudden spikes in usage. The parent
+process continually checks on the child processes to see how many are
+idle. It then terminates extra children or creates new children
+depending on the settings. Using configuration settings, the server can
+be finely tuned for maximum performance.</p>
+<p>Apache version 2 takes this even a step further by introducing <i>thread pools</i>.
+Thread pools are similar to process pools in that you generate the
+handlers to deal with connecting clients during the initialization of
+the application, but you are creating threads instead of processes.
+We&#8217;ll talk about thread pools in the section &#8220;Prethreading: Thread
+Pools.&#8221;</p>
+<p><i><strong>A Preforking Server</strong></i></p>
+<p>In the following program (
+<font face="Courier">server3.c</font>
+), the parent server process uses a loop to create the specified number
+of child processes. On execution, we can pass in the number of children
+to fork, on the command line. The parent server process then calls
+<font face="Courier">wait()</font>to keep it from returning before any
+of its children. If we don&#8217;t insert this call, the parent process will
+end immediately. Each child then calls accept on the same listening
+socket and waits for a client connection. When a connection is made,
+the operating system chooses one of the children to signal using a
+&#8220;first in, first out&#8221; methodology. That child receives the data from
+the client and echoes it back. Finally, the connection is closed, and
+the child calls
+<font face="Courier">accept()</font>
+again to wait for another client. Figure 5-5 shows the basic architecture for process pools.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_5.JPG" height="269" width="400"><br>
+<strong>Figure 5-5.</strong>&nbsp; <em>Basic architecture for process pools</em></p>
+<p>The initial section is again similar to the earlier programs, except
+that we check the command line to see how large a process pool to
+create:</p>
+<p>
+<font face="Courier">/* server3.c *
+/<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;sys/ioctl.h&gt;<br>
+#include &lt;sys/types.h&gt;<br>
+#include &lt;sys/socket.h&gt;<br>
+#include &lt;netinet/in.h&gt;<br>
+</font><font face="Courier">int main(int argc, char *argv[])<br>
+{</font></p>
+<p>
+First, we declare the variables that we will need.</p>
+<p>
+<font face="Courier">&nbsp; struct sockaddr_in sAddr;<br>
+&nbsp; int listensock;<br>
+&nbsp; int newsock;<br>
+&nbsp; char buffer[25];<br>
+&nbsp; int result;<br>
+&nbsp; int nread;<br>
+&nbsp; int pid;<br>
+&nbsp; int nchildren = 1;<br>
+&nbsp; int x;<br>
+&nbsp; int val;</font></p>
+<p>
+Then, we check the command line to see how many processes will be in
+our process pool. If nothing is specified, then we create only one
+listening process.</p>
+<p>
+<font face="Courier">&nbsp; if (argc &gt; 1) {<br>
+&nbsp;&nbsp;&nbsp; nchildren = atoi(argv[1]);<br>
+&nbsp; }</font></p>
+<p align="left">
+We create the socket that will listen for incoming connections.</p>
+<p align="left">
+<font face="Courier">&nbsp; listensock = socket(AF_INET, SOCK_STREAM,&nbsp;<br>
+IPPROTO_TCP);</font></p>
+<p>
+Again, we set the<font face="Courier">
+SO_REUSEADDR</font>
+option.</p>
+<p>
+<font face="Courier">&nbsp; val = 1;<br>
+&nbsp; result = setsockopt(listensock,&nbsp;<br>
+SOL_SOCKET, SO_REUSEADDR, &amp;val, sizeof<br>
+(val));<br>
+&nbsp; if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">perror("server3");<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; }</font></p>
+<p>
+Next, we bind it to a local port and all addresses associated with the machine.</p>
+<p>
+<font face="Courier">&nbsp; sAddr.sin_family = AF_INET;<br>
+&nbsp; sAddr.sin_port = htons(1972);&nbsp; <br>
+&nbsp; sAddr.sin_addr.s_addr = INADDR_ANY;<br>
+&nbsp; </font><font face="Courier">result = bind(listensock, (struct sockaddr<br>
+*) &amp;sAddr, sizeof(sAddr));<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; perror("server3");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+Now we put it into listening mode.</p>
+<p>
+<font face="Courier">&nbsp; result = listen(listensock, 5);<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; perror("server3");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+We create the specified number of child processes for the process pool using the
+<font face="Courier">fork()</font>
+system call:</p>
+<p>
+<font face="Courier">&nbsp; for (x = 0; x &lt; nchildren; x++) {<br>
+&nbsp;&nbsp;&nbsp; if ((pid = fork()) == 0) {</font></p>
+<p>
+Each child process calls accept on the same listening socket. When a
+client connects, the system will choose the next child in line to
+notify:</p>
+<p>
+<font face="Courier">&nbsp; while (1) {<br>
+&nbsp;&nbsp;&nbsp; newsock = accept(listensock, NULL,NULL);</font></p>
+<p>
+Once a client connects, we read characters it sends, echo them to the screen and client, and close the connection:</p>
+<p>
+<font face="Courier">&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;printf("client connected to child&nbsp;<br>
+process %i.\n", getpid());<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;nread = recv(newsock, buffer, 25, 0);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;buffer[nread] = '\0';<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;printf("%s\n", buffer);<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;send(newsock, buffer, nread, 0);<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;close(newsock);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf( "client disconnected from&nbsp;<br>
+child process %i.\n", getpid());<br>
+</font><font face="Courier">&nbsp;&nbsp;&nbsp; }<br>
+&nbsp; }<br>
+}</font></p>
+<p>
+This tells the parent process to wait until all of the children have been com
+pleted, before continuing. Of course, none of the children in this example will ever be completed:</p>
+<p>
+<font face="Courier">&nbsp; wait(NULL)
+;<br>
+}</font></p>
+<p>
+Figure 5-6 shows a sample of the output obtained on executing the program. The client was run with five child processes.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_6.JPG" height="336" width="400"><br>
+<strong>Figure 5-6.</strong>&nbsp; <em>Output from a preforking server</em></p>
+<p>Notice that the processes are used in the order in which they called
+<font face="Courier">accept()</font>
+. Since we have more clients than processes in the process pool,
+earlier processes are reused for new clients once they become free.</p>
+<p>More recently, using threads has become the preferred method for handling multiple clients. <i>Threads </i>are
+lightweight processes that share the main memory space of the parent
+process. Because of this, they use fewer resources than a multiprocess
+application, and they enjoy a faster context-switch time. However,
+multithreaded applications are not as stable as multiprocess
+applications. Because of the shared memory if, say, a buffer overrun
+occurs in one thread, it can impact other threads. In this way, one bad
+thread can bring down the entire server program. This isn&#8217;t the case
+with multiprocess applications, where the memory in each process is
+protected from alteration from another process by the operating system.
+This keeps an errant process from corrupting the memory of another
+process.</p>
+
+<p>Before moving on, let&#8217;s talk a little more about shared memory in
+multi-threaded server applications. If not handled correctly, the
+shared memory can be a double-edged sword. Remember that global
+variables will be shared by all threads. This means that to keep
+client-specific information, you must take advantage of the
+thread-local storage mechanisms provided by your thread library. These
+allow you to create &#8220;thread-global&#8221; values that aren&#8217;t shared between
+threads.</p>
+<p>If you do have global variables that need to be shared between
+threads, it is very important to use the synchronization objects like
+mutexes to control access to them. Without synchronization objects, you
+can run into very strange behaviors and even unexplained program
+crashes. Most often this occurs when one thread is writing to a
+variable when another is reading or writing to the same variable. This
+situation can cause memory corruption, and it may not show itself
+immediately but will eventually cause problems. Multithreaded
+applications are hard enough to debug, so synchronize access to all
+global variables and structures.</p>
+<p>The version of POSIX threads distributed with most flavors of Linux was developed by Xavier Leroy. His website,
+<font face="Courier"><a rel="nofollow" href="http://pauillac.inria.fr/%7Exleroy/">http://pauillac.inria.fr/~xleroy/</a>&nbsp; linuxthreads</font>
+, has more information. In addition, there are many other resources on
+the Internet for references on pthread programming. You can find a new
+thread library based on GNU&#8217;s pth library at
+<font face="Courier"><a rel="nofollow" href="http://oss.software.ibm.com/">http://oss.software.ibm.com/</a></font> <font face="Courier">developerworks/opensource/pthreads</font>
+.</p>
+<p>As with the multiprocess strategy, using one thread per client is
+the simplest multithreaded server architecture. Again, the client logic
+in each thread does not have to stop to service other connected
+clients, but is free to focus on one client. One caveat, though, is
+that the maximum number of threads allowed on a system is far less than
+the maximum number of processes. With a server that needs to maintain a
+large number of persistent connections, you may want to consider using
+one of the other architectures presented in this chapter.</p><i><strong>A Multithreaded Server</strong></i>
+<p>Note the multithreaded server&#8217;s similarity to the multiprocess model. In the following program (
+<font face="Courier">server4.c</font>
+), the parent server process waits for client connections. When a
+connection occurs, the server creates a new thread and passes the new
+socket descriptor to it. The new thread then reads data from the client
+and echoes it back. Finally, the connection is closed, and the thread
+exits. Meanwhile, the parent process loops and waits for another
+connection. Figure 5-7 shows the basic architecture for a multithreaded
+server.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_7.JPG" height="266" width="400"><br>
+<strong>Figure 5-7.</strong>&nbsp; <em>Basic architecture for a multithreaded server</em></p>
+<p>Again, the initial section of the code is similar to that in the previous programs:</p>
+<p>
+<font face="Courier">/* server4.c *
+/<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;sys/ioctl.h&gt;<br>
+#include &lt;sys/types.h&gt;<br>
+#include &lt;sys/socket.h&gt;<br>
+#include &lt;netinet/in.h&gt;<br>
+#include &lt;pthread.h&gt;<br>
+</font><font face="Courier">void* thread_proc(void *arg);<br>
+</font><font face="Courier">int main(int argc, char *argv[])<br>
+{</font></p>
+<p>
+First, we declare the variables that we will need.</p>
+<p>
+<font face="Courier">struct sockaddr_in sAddr;<br>
+int listensock;<br>
+int newsock;<br>
+int result;<br>
+pthread_t thread_id;<br>
+int val;</font></p>
+<p>
+Next, we create the socket that will listen for incoming connections.</p>
+<p>
+<font face="Courier">&nbsp; listensock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);</font></p>
+<p>
+Now we set the
+<font face="Courier">SO_REUSEADDR</font>
+socket option.</p>
+<p>
+<font face="Courier">&nbsp; val = 1;<br>
+&nbsp; result = setsockopt(listensock, SOL_SOCKET, SO_REUSEADDR, &amp;val, sizeof(val));<br>
+&nbsp; if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; </font><font face="Courier">perror("server4");<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; }</font></p>
+<p>
+Then, we bind it to a local port and all addresses associated with the machine.</p>
+<p>
+<font face="Courier">&nbsp; sAddr.sin_family = AF_INET;<br>
+&nbsp; sAddr.sin_port = htons(1972);&nbsp;&nbsp; <br>
+&nbsp; sAddr.sin_addr.s_addr = INADDR_ANY;<br>
+&nbsp; </font><font face="Courier">result = bind(listensock, (struct sockaddr *) &amp;sAddr, sizeof(sAddr));<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; perror("server4");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+We then put the socket into listening mode.</p>
+<p>
+<font face="Courier">&nbsp; result = listen(listensock, 5);<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; perror("server4");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+As in
+<font face="Courier">server2.c</font>
+, we call
+<font face="Courier">accept()</font>
+and let it block until a client tries to connect:</p>
+<p>
+<font face="Courier">&nbsp; while (1) {<br>
+&nbsp; newsock = accept(listensock, NULL,NULL);</font></p>
+<p>
+Once a client connects, a new thread is started. The descriptor for the
+new client socket is passed to the thread function. Since the
+descriptor is passed to the function instead of being copied, there
+will be no need for the parent thread to close the descriptor:</p>
+<p>
+<font face="Courier">&nbsp; result = pthread_create(&amp;thread_id, NULL, thread_proc, (void *) newsock);<br>
+&nbsp; if (result != 0) {<br>
+&nbsp;&nbsp;&nbsp; printf("Could not create thread.\n");<br>
+&nbsp; }</font></p>
+<p>
+Since the parent thread will be in a continuous loop, there will be no
+need to ever join one of the child threads. Therefore, we call
+<font face="Courier">pthread_detach()</font>to keep zombies from
+occurring. A zombie is a process (or thread, in this case) that has
+returned and is waiting for its parent to check its return value. The
+system will keep the zombies around until the return value is checked,
+so they just take up resources. In our example, we aren&#8217;t interested in
+the thread&#8217;s return value, so we tell the system by calling
+<font face="Courier">pthread_detach()</font>
+. Then, we call
+<font face="Courier">sched_yield()</font>
+to give the new thread a chance to start execution by giving up the remainder of the parent&#8217;s allotted time-slice.</p>
+<p>
+<font face="Courier">&nbsp;&nbsp;&nbsp; pthread_detach(thread_id);<br>
+&nbsp;&nbsp;&nbsp; sched_yield();<br>
+&nbsp; }<br>
+}<br>
+</font><font face="Courier">void* thread_proc(void *arg)<br>
+</font><font face="Courier">{<br>
+&nbsp; int sock;<br>
+&nbsp; char buffer[25];<br>
+&nbsp; int nread;</font></p>
+<p>In our thread function, we cast the passed argument back to a socket
+descriptor. Notice that we don&#8217;t close the listening socket as we did
+in
+<font face="Courier">server2.c</font>. In a threaded server, the
+descriptors aren&#8217;t copied to the child process, so we don&#8217;t have an
+extra listening socket descriptor in the child. Next is the familiar
+routine: read characters, echo them to the screen and client, and close
+the connection.</p>
+<p>
+<font face="Courier">&nbsp; printf("child thread %i with pid %i created.\n", pthread_self(),<br>
+</font><font face="Courier">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;getpid());<br>
+&nbsp; sock = (int) arg;<br>
+&nbsp; nread = recv(sock, buffer, 25, 0);<br>
+&nbsp; buffer[nread] = '\0';<br>
+&nbsp; printf("%s\n", buffer);<br>
+&nbsp; send(sock, buffer, nread, 0);<br>
+&nbsp; close(sock);<br>
+&nbsp; printf("child thread %i with pid %i finished.\n", pthread_self(),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">getpid());<br>
+}</font></p>
+<p>
+The server can be compiled with the following command. Notice that we
+are linking with the pthread library. This is the library that gives us
+the threading capabilities.</p>
+<p><strong><font face="Courier">gcc -o server4 -lpthread server4.c</font> </strong></p><font face="Utopia-Regular" size="2">
+<p align="left">Figure 5-8 shows a sample of the output obtained on executing the program. The client was run with five child processes.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/image_8.JPG" height="323" width="389"><br>
+<strong>Figure 5-8. </strong><em>&nbsp;Output from a multithreaded server</em></p></font>
+<p>Notice that, for a short time, all of the clients are connected at the same time.</p>
+<p>Thread pools operate in a very similar manner to process pools. Our
+strategy is to create a certain number of threads when the application
+initializes. We then have a pool of threads to handle incoming client
+connections, and we avoid the costs associated with waiting to create a
+thread when the request is made. In addition, with shared memory, it is
+much easier to implement dynamic thread pools in which we can resize
+our thread pool at runtime depending on the load requirements.</p>
+<p>On the downside, if one thread crashes, it can bring down the entire
+server application. This is due to the fact that all of the threads,
+including the main&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+appli
+cation&nbsp;process, use the same memory space and resources (for
+example, file descriptors). So, for example, if one of the threads
+encounters a buffer overrun problem, it can corrupt memory being used
+by another thread. This is not the case with multiple processes,
+because the operating system prevents one process from writing over the
+memory in another process. Great care must be taken when designing a
+multithreaded server to prevent an errant thread from affecting the
+others.</p>
+<p align="left">Figure 5-9. shows the basic architecture for a prethreaded server application.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_9.JPG" height="273" width="400"><br>
+<strong>Figure 5-9.</strong>&nbsp; <em>Basic architecture for a prethreaded server application</em></p>
+<p>In the following program (
+<font face="Courier">server5.c</font>
+), the number of threads in the pool is passed in on the command line.
+The parent process then uses a loop to spawn the requested number of
+threads, passing the descriptor of the listening socket. It then calls
+<font face="Courier">pthread_join()</font>to keep it from returning
+before any of its threads. If we didn&#8217;t insert this call, the parent
+process would end immediately and cause all its threads to return. Each
+thread then calls accept on the same listening socket and waits for a
+client connection. When a connection is made, the operating system
+chooses one of the threads to signal using a &#8220;first in, first out&#8221;
+methodology. This thread receives the data from the client and echoes
+it back. Finally, the connection is closed, and the thread calls
+<font face="Courier">accept()</font>
+again to wait for another client.</p>
+<p>These lines are very similar to the section in the program
+<font face="Courier">server3.c</font>
+:</p>
+<p>
+<font face="Courier">/* server5.c *
+/<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;sys/ioctl.h&gt;<br>
+#include &lt;sys/types.h&gt;<br>
+#include &lt;sys/socket.h&gt;<br>
+#include &lt;netinet/in.h&gt;<br>
+#include &lt;pthread.h&gt;<br>
+</font><font face="Courier">void* thread_proc(void *arg);<br>
+</font><font face="Courier">int main(int argc, char *argv[])<br>
+{</font></p>
+<p>
+First, we declare the variables that we will need.</p>
+<p>
+<font face="Courier">&nbsp; struct sockaddr_in sAddr;<br>
+&nbsp; int listensock;<br>
+&nbsp; int result;<br>
+&nbsp; int nchildren = 1;<br>
+&nbsp; pthread_t thread_id;<br>
+&nbsp; int x;<br>
+&nbsp; int val;</font></p>
+<p>We check the command line to see how many threads should be in our
+thread pool. If none is specified, then we will create a single thread.</p>
+<p>
+<font face="Courier">&nbsp; if (argc &gt; 1) {<br>
+&nbsp;&nbsp;&nbsp; nchildren = atoi(argv[1]);<br>
+&nbsp; }</font></p>
+<p>
+Next, we create the socket that will listen for incoming connections.</p>
+<p>
+<font face="Courier">&nbsp; listensock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);</font></p>
+<p>
+Then, we set the
+<font face="Courier">SO_REUSEADDR</font>
+option.</p>
+<p>
+<font face="Courier">val = 1;<br>
+result = setsockopt(listensock, SOL_SOCKET, SO_REUSEADDR, &amp;val, sizeof(val));<br>
+if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">perror("server5");<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+}</font></p>
+<p align="left">
+We bind it to a local port and to all addresses associated with the machine.</p>
+<p>
+<font face="Courier">&nbsp; sAddr.sin_family = AF_INET;<br>
+&nbsp; sAddr.sin_port = htons(1972);&nbsp; <br>
+&nbsp; sAddr.sin_addr.s_addr = INADDR_ANY;<br>
+&nbsp; </font><font face="Courier">result = bind(listensock, (struct sockaddr *) &amp;sAddr, sizeof(sAddr));<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; perror("server5");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+We now put it into listening mode.</p>
+<p>
+<font face="Courier">&nbsp; result = listen(listensock, 5);<br>
+&nbsp; </font><font face="Courier">if (result &lt; 0) {<br>
+&nbsp;&nbsp;&nbsp; perror("server5");<br>
+&nbsp;&nbsp;&nbsp; return 0;<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+Afterward, we create our pool of threads. Notice that we pass the descriptor for the listening socket instead of the client:</p>
+<p>
+<font face="Courier">&nbsp; for (x = 0; x &lt; nchildren; x++) {<br>
+&nbsp;&nbsp;&nbsp; result = pthread_create(&amp;thread_id, NULL, thread_proc,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+(void *) listensock);<br>
+&nbsp;&nbsp;&nbsp; if (result != 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">printf("Could not create thread.\n");<br>
+&nbsp;&nbsp;&nbsp; }<br>
+&nbsp;&nbsp;&nbsp; sched_yield();<br>
+&nbsp; </font><font face="Courier">}</font></p>
+<p>
+Here, we call
+<font face="Courier">pthread_join()</font>
+. This has the same effect that calling
+<font face="Courier">wait()</font>
+did in
+<font face="Courier">server3.c</font>
+. It keeps the parent thread from continuing until the child threads are finished:</p>
+<p>
+<font face="Courier">&nbsp; pthread_join (thread_id, NULL);<br>
+}<br>
+</font><font face="Courier">void* thread_proc(void *arg)<br>
+</font><font face="Courier">{<br>
+&nbsp; int listensock, sock;<br>
+&nbsp; char buffer[25];<br>
+&nbsp; int nread;<br>
+&nbsp; </font><font face="Courier">listensock = (int) arg;<br>
+&nbsp; </font><font face="Courier">while (1) {</font></p>
+<p>
+Each thread calls
+<font face="Courier">accept()</font>
+on the same listening socket descriptor. Just as in
+<font face="Courier">server3.c</font>
+, when a client connects, the kernel will choose a thread in which
+<font face="Courier">accept()</font>
+returns:</p>
+<p>
+<font face="Courier">&nbsp; sock = accept(listensock, NULL, NULL);</font></p>
+<p>
+Once
+<font face="Courier">accept()</font>
+returns, we read the data from the client and echo it back. Then we close the connection.</p>
+<p>
+<font face="Courier">&nbsp;&nbsp;&nbsp; printf("client connected to child thread %i with pid %i.\n",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">pthread_self(), getpid());<br>
+&nbsp;&nbsp;&nbsp; nread = recv(sock, buffer, 25, 0); <br>
+&nbsp;&nbsp;&nbsp; buffer[nread] = '\0';<br>
+&nbsp;&nbsp;&nbsp; printf("%s\n", buffer);<br>
+&nbsp;&nbsp;&nbsp; send(sock, buffer, nread, 0);<br>
+&nbsp;&nbsp;&nbsp; close(sock);<br>
+&nbsp;&nbsp;&nbsp; printf("client disconnected from child thread %i with pid %i.\n",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </font><font face="Courier">pthread_self(), getpid());<br>
+&nbsp; }<br>
+}</font></p>
+<p>
+The server can be compiled with the following command:</p>
+<p><strong><font face="Courier">&nbsp; gcc -o server5 -lpthread server5.c</font> </strong></p>
+<p>This will run the server with five threads in the thread pool:</p>
+<p>
+<font face="Courier">&nbsp; ./server5 5</font></p>
+<p align="left">
+Figure 5-10 shows a sample of the output obtained on executing the program. The client was run with five child processes.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/image_10.JPG" height="327" width="388"><br>
+<strong>Figure 5-10.</strong>&nbsp; <em>Output from a prethreaded server</em></p>
+<p>Notice that the threads are used in the order in which they called
+<font face="Courier">accept()</font>
+. Since we have more clients than threads in the thread pool, earlier threads are reused for new clients once they become free.</p><strong>&nbsp;</strong>
+<p>Starting with version 2 of the Apache Web Server, the Apache Project (<a rel="nofollow" href="http://httpd.apache.org/"><font face="Courier">http://httpd.apache.org</font></a>)
+implemented a hybrid of the preforking and prethreading strategies.
+What the group hoped to achieve was the speed of prethreading combined
+with the stability of preforking.</p>
+
+<p>As mentioned earlier in the chapter, a multiprocess server doesn&#8217;t
+crash when one of the child processes crashes, but it suffers from
+slower context switching. Multithreaded servers, on the other hand, do
+crash when one of the child threads crashes, but have faster context
+switching. The developers at Apache have combined the two approaches to
+increase the benefits while mini
+mizing the drawbacks. Figure 5-11 shows this hybrid architecture.</p>
+<p align="center"><img title="" alt="" src="ServerDesign_files/mini-image_11.JPG" height="301" width="400"><br>
+<strong>Figure 5-11.</strong>&nbsp; <em>Combining preforking with prethreading</em></p>
+<p>The way it works is by preforking a number of server processes.
+However, these processes do not handle client connections. Instead,
+each child process spawns a finite number of threads. The threads
+handle client connections. Thus, when dealing with multiple clients,
+the server enjoys fast context-switching. As for crashes, if a thread
+crashes, it takes out only other threads from the same child process
+instead of the whole web server. Apache also provides a setting that
+sets a number of requests that a process handles before it is
+terminated and a new process (with child threads) is created. This
+ensures that resource leaks in any one process will be cleaned up
+periodically.</p>
+<blockquote style="margin-right: 0px;" dir="ltr"><b>
+<hr>TIP&nbsp; </b><i>Don&#8217;t forget about multiplexing. Multiplexing can
+be added to a multiprocess or multithreaded server to increase
+scalability. Using this strategy, you can handle very large numbers of
+simulta</i><i>neous users because each process or thread can handle
+more than one client. You can even combine all three and have a
+multiprocess, multithreaded server with multiplexing.
+<hr>
+<p dir="ltr"><strong>Which Method Should You Choose? </strong></p></i></blockquote>
+<p>Your choice of method should be made based on the requirements of
+the server you want to develop and the available resources in the
+environment in which the server will run. Multiplexing is ideal for a
+low-volume server to which clients will not stay connected for a long
+period of time. The danger with a multiplexing server is that any one
+client might monopolize the server&#8217;s time and cause it to stop
+responding to the other connected clients. In addition, a multiplexing
+server cannot take advantage of symmetric multiprocessing (SMP)
+capabilities. The reason is that a multiplexing server consists of a
+single process and, since a process cannot be spread across multiple
+CPUs, the server will only ever use one CPU.</p>
+<p>For ease of implementation, you can&#8217;t beat one process or thread per
+client. Processes win in stability, while threads win in context-switch
+time, resource use, and shared memory. Here, you must determine whether
+you need to coordinate the actions of clients. In a web server, for
+example, the clients are autonomous. So, the lack of shared memory
+isn&#8217;t really a concern. On the other hand, if you&#8217;re designing a
+multiuser enterprise application, then coordinating clients can be very
+important, and shared memory is essential. Of course, while using
+process pools can help with the context switching, when a client
+connects, it will still suffer from the lack of simple shared memory.</p>
+<p align="left">Table 5-1 summarizes the pros and cons of each method.</p>
+<p>In practice, the data transmitted between the client and the server
+is much larger than that dealt with in the examples earlier in this
+chapter. Such large amounts of data generate a few issues. First, large
+amounts of data will be broken up in the underlying transport layer. IP
+has a maximum packet size of 65,536 bytes, but even smaller amounts of
+data may be broken up depending on buffer availability. This means that
+when you call <font face="Courier">recv()</font>
+, for example, it may not return all of the data the first time, and
+subsequent calls may be required. Second, while you are sending or
+receiving large amounts of data, you require your user interface to be
+responsive. In this section, we will address these issues.</p>
+<p><i><strong>Nonblocking Sockets</strong></i> </p>
+<p>The first step to carry out large-sized data transfers is to create
+nonblocking sockets. By default, whenever we create a socket, it will
+be a blocking socket. This means that if we call
+<font face="Courier">recv()</font>
+and no data is available, our program will be put to sleep until some data arrives. Calling
+<font face="Courier">send()</font>will put our program to sleep if
+there is not enough outgoing buffer space available to hold all of the
+data we want to send. Both conditions will cause our application to
+stop responding to a user.</p>
+<p align="left"><i>Table 5-1. Method Pros and Cons</i></p>
+<p align="left">
+<table style="border-collapse: collapse;" class="contentpaneopen" border="1" bordercolor="#000000" cellpadding="1" cellspacing="0" width="95%">
+<tbody>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Method</strong></p></td>
+<td valign="top" width="14%">
+<p>Multiplexing</p></td>
+<td valign="top" width="14%">
+<p>Forking</p></td>
+<td valign="top" width="14%">
+<p>Threading</p></td>
+<td valign="top" width="14%">
+<p>Preforking</p></td>
+<td valign="top" width="14%">
+<p>Pre threading</p></td>
+<td valign="top" width="14%">
+<p>Preforking plus pre threading</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Code Complexity</strong></p></td>
+<td valign="top" width="14%">
+<p>Can be very complex and difficult to follow</p></td>
+<td valign="top" width="14%">
+<p>Simple</p></td>
+<td valign="top" width="14%">
+<p>Simple</p></td>
+<td valign="top" width="14%">
+<p>Can be complex if using a dynamic pool and shared memory</p></td>
+<td valign="top" width="14%">
+<p>Only complex if using a dynamic pool</p></td>
+<td valign="top" width="14%">
+<p>Complex</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Shared Memory</strong></p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Only through shnget()</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Only through shnget()</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Yes but only within each process</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Number of Connections</strong></p></td>
+<td valign="top" width="14%">
+<p>Small</p></td>
+<td valign="top" width="14%">
+<p>Large</p></td>
+<td valign="top" width="14%">
+<p>Large, but not as large as forking</p></td>
+<td valign="top" width="14%">
+<p>Depends on the size of the process pool</p></td>
+<td valign="top" width="14%">
+<p>Depends on the size of the thread pool</p></td>
+<td valign="top" width="14%">
+<p>Depends on pool sizes</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Frequency of New Connections</strong></p></td>
+<td valign="top" width="14%">
+<p>Can handle new con nections quickly</p></td>
+<td valign="top" width="14%">
+<p>Time is required for a new process to start</p></td>
+<td valign="top" width="14%">
+<p>Time is required for a new thread to start</p></td>
+<td valign="top" width="14%">
+<p>Can handle new con nections quickly if the process pool is large enough</p></td>
+<td valign="top" width="14%">
+<p>Can handle new con nections quickly if the thread pool is large enough</p></td>
+<td valign="top" width="14%">
+<p>Can handle new con nections quickly if pools are large enough.</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Length of Connections</strong></p></td>
+<td valign="top" width="14%">
+<p>Good for long or short con nections</p></td>
+<td valign="top" width="14%">
+<p>Better for longer con nections. Reduces start penalty.</p></td>
+<td valign="top" width="14%">
+<p>Better for longer con nections. Reduces thread start penalty.</p></td>
+<td valign="top" width="14%">
+<p>Good for long or short con nections</p></td>
+<td valign="top" width="14%">
+<p>Good for long or short con nections</p></td>
+<td valign="top" width="14%">
+<p>Good for long or short con nections</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Stability</strong></p></td>
+<td valign="top" width="14%">
+<p>One client can crash the server</p></td>
+<td valign="top" width="14%">
+<p>One client can crash the server</p></td>
+<td valign="top" width="14%">
+<p>One client can crash the server</p></td>
+<td valign="top" width="14%">
+<p>One client cannot crash the server</p></td>
+<td valign="top" width="14%">
+<p>One client can crash the server</p></td>
+<td valign="top" width="14%">
+<p>One client will crash only its parent process not the whole server</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Context Switching</strong></p></td>
+<td valign="top" width="14%">
+<p>N/A</p></td>
+<td valign="top" width="14%">
+<p>Not as fast as threads</p></td>
+<td valign="top" width="14%">
+<p>Fast</p></td>
+<td valign="top" width="14%">
+<p>Not as fast as threads</p></td>
+<td valign="top" width="14%">
+<p>Fast</p></td>
+<td valign="top" width="14%">
+<p>Fast</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>Resource Use</strong></p></td>
+<td valign="top" width="14%">
+<p>Low </p></td>
+<td valign="top" width="14%">
+<p>High</p></td>
+<td valign="top" width="14%">
+<p>Medium</p></td>
+<td valign="top" width="14%">
+<p>High</p></td>
+<td valign="top" width="14%">
+<p>Medium</p></td>
+<td valign="top" width="14%">
+<p>Similar to threading but depends on how much pre forking is done</p></td></tr>
+<tr>
+<td valign="top" width="14%">
+<p><strong>SMP Aware</strong></p></td>
+<td valign="top" width="14%">
+<p>No</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td>
+<td valign="top" width="14%">
+<p>Yes</p></td></tr></tbody></table></p>
+<p align="left">Creating a nonblocking socket involves two steps.
+First, we create the socket as we would usually, using the socket
+function. Then, we use the following call to<font face="Courier">
+ioctl()</font>
+:</p>
+<p>
+<font face="Courier">&nbsp; unsigned long nonblock = 1
+;<br>
+&nbsp; ioctl(sock, FIONBIO, &amp;nonblock);</font></p>
+<p>
+With a nonblocking socket, when we call
+recv()
+and no data is available, it will return immediately with
+EWOULDBLOCK
+. If data is available, it will read what it can and then return,
+telling us how much data was read. Likewise with
+send()
+, if there is no room in the outgoing buffer, then it will return
+immediately with
+EWOULDBLOCK
+. Otherwise, it will send as much of our outgoing data as it can before
+returning the number of bytes sent. Keep in mind that this may be less
+than the total number of bytes we told it to send, so we may need to
+call send again.</p>
+<p>The
+select()
+call from the section on multiplexing is the second step to carry out
+large-sized data transfers. As mentioned earlier, we use
+select()
+to tell us when a socket is ready for reading or writing. In addition,
+we can specify a time-out, so that in case a socket is not ready for
+reading or writing within a specified time period,
+select()
+will return control to our program. This allows us to be responsive to
+a user&#8217;s commands while still polling the socket for activity.</p><i>Putting It All Together</i>
+<p>Combining nonblocking sockets with
+select()
+will allow us to send and receive large amounts of data while keeping
+our application responsive to the user, but we still need to deal with
+the data itself. Sending large amounts of data is rela
+tively easy because we know how much we need to send. Receiving data,
+on the other hand, can be a little harder unless we know how much data
+to expect. Because of this, we will need to build into our
+communications protocol either a method to tell the receiving program
+how much data to expect or a fixed data segment size.</p>
+<p>Communicating the expected size of the data to the receiver is
+fairly simple. In fact, this strategy is used by HTTP, for example. The
+sender calculates the size of the data to send and then transmits that
+size to the receiver. The receiver then knows exactly how much data to
+receive.</p>
+<p>Another option is to use a fixed-sized segment. In this way, we will
+always send the same amount of data in each segment sent to the
+receiver. Because of this, the sender may need to break up data into
+multiple segments or fill undersized segments. Therefore, care must be
+taken in determining the segment size. If our segment size is too
+large, then it will be broken up in the transport and will be
+inefficient. If it is too small, then we will incur a lot of underlying
+packet overhead by sending undersized packets. The extra work on the
+sending side pays off on the receiving side, however, because the
+receiving is greatly simplified.</p>
+<p>Since the receiver is always receiving the same amount of data in
+each segment, buffer overruns are easily preventable. Using fixed sizes
+can be a little more complex on the sending side, but simpler on the
+receiving side.</p>
+<p>Finally, here is some code that demonstrates sending data using nonblocking sockets and
+select()
+. The strategy for receiving data is very similar.</p>
+<p>
+int mysend(int sock, const char *buffer, long buffsize) {</p>
+<p><b>NOTE</b><i>This code does not deal with the Big Endian/Little
+Endian issue. It sends a buffer of bytes in the order provided. If you
+will be dealing with clients and servers that use differing byte
+orders, then you will need to take care in how the data is formatted
+before send</i><i>ing with this function.</i></p>
+<p>First, we declare some variables that we&#8217;ll need.</p>
+<p>
+fd_set fset
+; struct timeval tv; int sockStatus; int bytesSent; char *pos; char *end; unsigned long blockMode;</p>
+<p>
+Then, we set the socket to nonblocking. This is necessary for our send
+but can be removed if we are already using nonblocking sockets.</p>
+<p>
+/* set socket to non-blocking */ blockMode = 1; ioctl(sock, FIONBIO, &amp;blockMode);</p>
+<p>
+Now we set up a variable to keep our place in the outgoing buffer and a vari
+able to point to the end of the buffer.</p>
+<p>
+pos = (char *) buffer
+; end = (char *) buffer + buffsize;</p>
+<p>
+Next, we loop until we get to the end of the outgoing buffer.</p>
+<p>
+while (pos &lt; end) {</p>
+<p>
+We send some data. If
+send()
+returns a negative number, then an error has occurred. Note that 0 is a valid number. Also, we want to ignore an error of
+EAGAIN
+, which signifies that the outgoing buffer is full. Our call to
+select()
+will tell us when there is room again in the buffer.</p>
+<p>
+bytesSent = send(sock, pos, end - pos, 0); if (bytesSent &lt; 0) { if
+(bytesSent == EAGAIN) { bytesSent = 0; } else { return 0; } }</p>
+<p>
+We update our position in the outgoing buffer.</p>
+<p>
+pos += bytesSent;</p>
+<p>
+If we are already to the end of the buffer, then we want to break out of the
+while
+loop. There is no need to wait in the
+select()
+because we are already done.</p>
+<p>
+if (pos &gt;= end) { break; }</p>
+<p>
+Next, we get our watch list ready for
+select()
+. We also specify a timeout of 5 seconds. In this example, we treat a
+timeout as a failure, but you could do some processing and continue to
+try and send. It is important to use
+select()
+here because if the outgoing buffer is full, then we end up with a
+tight busy-wait loop that can consume far too many CPU cycles. Instead,
+we allow our process to sleep until buffer space is available or too
+much time has lapsed without space becoming available.</p>
+<p>
+FD_ZERO(&amp;fset); FD_SET(sock, &amp;fset); tv.tv_sec = 5; tv.tv_usec
+= 0; sockStatus = select(sock + 1, NULL, &amp;fset, &amp;fset,
+&amp;tv); if (sockStatus &lt;= 0) {</p>
+<p>return 0; } }</p>
+<p>return 1; }</p><strong>Summary </strong>
+<p>In this chapter, we looked at the different ways to handle multiple,
+simultaneous clients. First, we examined how to handle multiple clients
+in a single server process by using multiplexing. Then, we moved on to
+multiprocessing servers and the single process per client versus a
+process pool. Next, we introduced multi threaded servers. Much like
+multiprocess servers, multithreaded servers can be either a
+one-thread-per-client or a thread-pooled architecture. Afterward, we
+looked at an interesting approach used by the Apache Web Server version
+2, in which multiprocessing is combined with multiple threads. We
+closed the chapter by covering how to handle sending and receiving
+large amounts of data by using nonblocking sockets and the
+select()
+system call.</p>
+In this chapter, we looked at the different ways to handle multiple,
+simultaneous clients. First, we examined how to handle multiple clients
+in a single server process by using multiplexing. Then, we moved on to
+multiprocessing servers and the single process per client versus a
+process pool. Next, we introduced multithreaded servers. Much like
+multiprocess servers, multithreaded servers can be either a
+one-thread-per-client or a thread-pooled architecture. Afterward, we
+looked at an interesting approach used by the Apache Web Server version
+2, in which multiprocessing is combined with multiple threads. We
+closed the chapter by covering how to handle sending and receiving
+large amounts of data by using nonblocking sockets and
+theselect()system call.
+<p>In the next chapter, we&#8217;ll examine what&#8217;s involved in implementing a custom protocol.</p>
+</div>
+	</span>
+</td>
+</tr>
+</tbody></table>
+
+
+	</body></html>
